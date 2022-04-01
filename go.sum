@@ -1,0 +1,16 @@
+github.com/ajzo90/go-jsonschema-generator v0.0.0-20220309220013-13e685e490a5 h1:RN6RMMcYWHiPMFVOvgM8YPwKz71288avWFH4CthGrpI=
+github.com/ajzo90/go-jsonschema-generator v0.0.0-20220309220013-13e685e490a5/go.mod h1:RECGC5ycY7fn0Ia7DlgmDbz8nqnuaLVzRh3T2/OCgzk=
+github.com/ajzo90/go-requests v0.0.2 h1:z/uI9gK/XQag4C+HtvI2HG4m86aSGE7os9sdU0p8uE4=
+github.com/ajzo90/go-requests v0.0.2/go.mod h1:k/VLC/84nCqO4w+Zblx7HS92y8i7d2jfdQS1cwYI2CI=
+github.com/ajzo90/go-requests v0.0.3-0.20220401090839-9e532c116c9f h1:sN7tauTZcaCHAz9cHCt2Yc+98/nBtJ2K3dtWO23fZRA=
+github.com/ajzo90/go-requests v0.0.3-0.20220401090839-9e532c116c9f/go.mod h1:8kjJKSyvJTiOqH4NN08eBs0lXPoP/oqlTazmbeti41I=
+github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
+github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/matryer/is v1.4.0 h1:sosSmIWwkYITGrxZ25ULNDeKiMNzFSr4V/eqBQP0PeE=
+github.com/matryer/is v1.4.0/go.mod h1:8I/i5uYgLzgsgEloJE1U6xx5HkBQpAZvepWuujKwMRU=
+github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
+github.com/valyala/fastjson v1.6.3 h1:tAKFnnwmeMGPbwJ7IwxcTPCNr3uIzoIj3/Fh90ra4xc=
+github.com/valyala/fastjson v1.6.3/go.mod h1:CLCAqky6SMuOcxStkYQvblddUtoRxhYMGLrsQns1aXY=
+golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
