@@ -10,7 +10,7 @@ import (
 )
 
 type Proto interface {
-	Open(name string) StreamWriter
+	Open(name string) Loader
 }
 
 type Loader interface {
@@ -70,7 +70,7 @@ func Run(ctx context.Context, proto Proto, runners runners) error {
 	wg, ctx := errgroup.WithContext(ctx)
 	for stream, runner := range runners {
 		pw := proto.Open(stream)
-		pw.Schema(runner.typ)
+		//pw.Schema(runner.typ)
 		wg.Go(func() error {
 			return runner.fn.Run(ctx, pw)
 		})
