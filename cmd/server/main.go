@@ -10,15 +10,20 @@ import (
 	"strings"
 )
 
-func main() {
+var loaders = map[string]integ.Loader{
+	"shopify": shopify.Loader,
+}
+var protos = integ.Protos{
+	"":     integ.AirbyteProto,
+	"mock": integ.AirbyteProto,
+}
 
-	var loaders = map[string]integ.Loader{
-		"shopify": shopify.Loader,
-	}
+func main() {
 	for name, loader := range loaders {
 		if err := loader.Validate(); err != nil {
 			panic(fmt.Errorf("validation error in %s: %v", name, err))
 		}
+		loader.Protos(protos)
 	}
 
 	var h = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -33,9 +38,9 @@ func main() {
 			return
 		}
 
-		for key, f := range loaders {
+		for key, loader := range loaders {
 			if strings.HasPrefix(request.URL.Path, "/"+key+"/") {
-				f.ServeHTTP(writer, request)
+				loader.ServeHTTP(writer, request)
 				return
 			}
 		}

@@ -86,10 +86,10 @@ type Settings struct {
 	Streams Streams
 }
 
-func Open(r io.Reader, w io.Writer, cmd cmd) (Proto, error) {
+func Open(r io.Reader, w io.Writer, cmd cmd, protos Protos) (Proto, error) {
 
 	var p fastjson.Parser
-	var i = &integration{states: map[string][]byte{}, _w: w, cmd: cmd}
+	var i = &Protocol{states: map[string][]byte{}, _w: w, cmd: cmd}
 	var buf []byte
 
 	var marshal = func(v *fastjson.Value) []byte {
@@ -131,12 +131,11 @@ func Open(r io.Reader, w io.Writer, cmd cmd) (Proto, error) {
 		return nil, err
 	}
 
-	switch i.settings.Format {
-	case "mock", "airbyte":
-		return &airbyteProto{integration: i}, nil
-	default:
+	fn, ok := protos[i.settings.Format]
+	if !ok {
 		return nil, fmt.Errorf("not supported")
 	}
+	return fn(i), nil
 }
 
 func newWrap(typ string, stream string) *fastjson.Value {
@@ -179,13 +178,14 @@ type runnerTyp struct {
 type runner struct {
 	config  interface{}
 	runners runners
+	protos  Protos
 }
 
 func (r *runner) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	var p = strings.Split(request.URL.Path, "/")
 	var last = p[len(p)-1]
 
-	if err := r.Handle(request.Context(), writer, cmd(last), request.Body); err != nil {
+	if err := r.Handle(request.Context(), cmd(last), writer, request.Body, r.protos); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -199,8 +199,11 @@ const (
 	cmdRead     cmd = "read"
 )
 
-func (r *runner) Handle(ctx context.Context, writer io.Writer, cmd cmd, rd io.Reader) error {
-	proto, err := Open(rd, writer, cmd)
+type ProtoFn func(protocol *Protocol) Proto
+type Protos map[string]ProtoFn
+
+func (r *runner) Handle(ctx context.Context, cmd cmd, writer io.Writer, rd io.Reader, protos Protos) error {
+	proto, err := Open(rd, writer, cmd, protos)
 	if err != nil {
 		return err
 	}
@@ -213,6 +216,10 @@ func (r *runner) Handle(ctx context.Context, writer io.Writer, cmd cmd, rd io.Re
 	} else {
 		return closeErr
 	}
+}
+
+func (r *runner) Protos(protos Protos) {
+	r.protos = protos
 }
 
 func (r *runner) handle(ctx context.Context, proto Proto, cmd cmd) error {
@@ -237,6 +244,7 @@ func NewLoader(config interface{}) *runner {
 type Loader interface {
 	http.Handler
 	Validate() error
+	Protos(Protos)
 }
 
 func (r *runner) Add(schema SchemaBuilder, runner Runner) *runner {

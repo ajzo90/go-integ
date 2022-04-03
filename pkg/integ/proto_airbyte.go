@@ -6,15 +6,23 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-var _ Proto = &airbyteProto{}
-var _ ExtendedStreamLoader = &airbyteStream{}
+var AirbyteProto ProtoFn = func(p *Protocol) Proto {
+	return &airbyteProto{p}
+}
 
 type airbyteProto struct {
-	*integration
+	*Protocol
+}
+
+type airbyteStream struct {
+	jsonStream
+	streams []interface{}
+	state   map[string]interface{}
+	rec     *fastjson.Value
 }
 
 func (m *airbyteProto) Open(schema Schema) ExtendedStreamLoader {
-	return &airbyteStream{rec: newWrap("RECORD", schema.Name), jsonStream: jsonStream{i: m.integration, schema: schema}, state: map[string]interface{}{}}
+	return &airbyteStream{rec: newWrap("RECORD", schema.Name), jsonStream: jsonStream{i: m.Protocol, schema: schema}, state: map[string]interface{}{}}
 }
 
 // Close flushes remaining data (state, streams)
@@ -36,13 +44,6 @@ func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 		Type: "SPEC",
 		Spec: v,
 	})
-}
-
-type airbyteStream struct {
-	jsonStream
-	streams []interface{}
-	state   map[string]interface{}
-	rec     *fastjson.Value
 }
 
 func (m *airbyteStream) WriteBatch(ctx context.Context, q *requests.Request, keys ...string) (*requests.JSONResponse, error) {
