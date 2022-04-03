@@ -24,7 +24,7 @@ var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, 
 
 }))
 
-func (config *config) client() *requests.Request {
+func (config *config) request() *requests.Request {
 	return requests.
 		New(config.Url).
 		SecretHeader("X-Shopify-Access-Token", config.ApiKey).
@@ -50,21 +50,21 @@ func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
 
 	from, to := timeWindow(state.To)
 
-	var q = config.client().
+	var req = config.request().
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
 		Query("fields", strings.Join(loader.Schema().FieldKeys(), ",")).
 		Query("status", "any")
 
-	for {
-		if resp, err := loader.WriteBatch(ctx, q, s.path); err != nil {
+	for resp := new(requests.JSONResponse); ; {
+		if err := loader.WriteBatch(ctx, req, resp, s.path); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
 			return loader.State(state)
 		} else {
-			q = config.client().Url(next)
+			req = config.request().Url(next)
 		}
 	}
 }

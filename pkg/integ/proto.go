@@ -30,7 +30,7 @@ type StreamLoader interface {
 
 	// WriteBatch emit records from a prepared http request
 	// (probably) called multiple times
-	WriteBatch(ctx context.Context, q *requests.Request, keys ...string) (*requests.JSONResponse, error)
+	WriteBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
 
 	// State emit the state
 	State(v interface{}) error
@@ -262,11 +262,11 @@ type validatorLoader struct {
 	ExtendedStreamLoader
 }
 
-func (m *validatorLoader) WriteBatch(ctx context.Context, q *requests.Request, keys ...string) (*requests.JSONResponse, error) {
-	if _, err := q.ExecJSON(ctx); err != nil {
-		return nil, err
+func (m *validatorLoader) WriteBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
+	if err := req.Extended().ExecJSONPreAlloc(resp, ctx); err != nil {
+		return err
 	} else {
-		return nil, validatorOK
+		return validatorOK
 	}
 }
 

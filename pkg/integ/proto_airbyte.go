@@ -46,17 +46,17 @@ func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 	})
 }
 
-func (m *airbyteStream) WriteBatch(ctx context.Context, q *requests.Request, keys ...string) (*requests.JSONResponse, error) {
-	resp, err := q.ExecJSON(ctx)
+func (m *airbyteStream) WriteBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
+	err := req.Extended().ExecJSONPreAlloc(resp, ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	m.recBuf = m.recBuf[:0]
 	for _, v := range resp.GetArray(keys...) {
 		m.rec.Set("record", v)
 		m.recBuf = append(m.rec.MarshalTo(m.recBuf), '\n')
 	}
-	return resp, m.i.Write(m.recBuf)
+	return m.i.Write(m.recBuf)
 }
 
 func (m *airbyteStream) WriteSchema(v Schema) error {
