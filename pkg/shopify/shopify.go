@@ -10,8 +10,8 @@ import (
 )
 
 var Loader = integ.NewLoader(config{}).
-	Stream("users", Runner("customers"), user{}).
-	Stream("orders", Runner("orders"), order{})
+	Add(users, Runner("customers")).
+	Add(orders, Runner("orders"))
 
 type config struct {
 	ApiKey        integ.MaskedString `json:"api_key" formType:"secret"`
@@ -27,7 +27,6 @@ var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, 
 func (config *config) client() *requests.Request {
 	return requests.
 		New(config.Url).
-		Method(http.MethodGet).
 		SecretHeader("X-Shopify-Access-Token", config.ApiKey).
 		Extended().Doer(doer).Clone()
 }
@@ -55,7 +54,7 @@ func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
-		Query("fields", strings.Join(loader.Fields(), ",")).
+		Query("fields", strings.Join(loader.Schema().FieldKeys(), ",")).
 		Query("status", "any")
 
 	for {

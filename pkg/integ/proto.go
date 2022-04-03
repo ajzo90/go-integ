@@ -11,38 +11,67 @@ import (
 	"github.com/valyala/fastjson"
 	"golang.org/x/sync/errgroup"
 	"io"
+	"log"
 	"net/http"
 	"runtime/debug"
 	"sort"
 	"strings"
 )
 
+type Runner interface {
+	// Run runs the sync job.
+	Run(ctx context.Context, loader StreamLoader) error
+}
+
+// StreamLoader is what the concrete integration can access
+type StreamLoader interface {
+	// Load a stream with config(shared) and state
+	Load(config, state interface{}) error
+
+	// WriteBatch emit records from a prepared http request
+	// (probably) called multiple times
+	WriteBatch(ctx context.Context, q *requests.Request, keys ...string) (*requests.JSONResponse, error)
+
+	// State emit the state
+	State(v interface{}) error
+
+	Schema() Schema
+}
+
 type Proto interface {
-	Open(name string, typ interface{}) ExtendedStreamLoader
-	Spec(interface{}) error
+	// Open a new stream loader
+	Open(typ Schema) ExtendedStreamLoader
+
+	// Spec defines the available streams
+	Spec(ConnectorSpecification) error
+
+	// Close closes the current session
 	Close() error
+
+	// Streams defines the active streams. 0 streams disable the filtering.
 	Streams() Streams
 }
 
 type ExtendedStreamLoader interface {
 	StreamLoader
-	Schema(v interface{}) error
+
+	// WriteSchema emit the schema
+	WriteSchema(v Schema) error
+
+	// Log something
 	Log(v interface{}) error
+
+	// Status report whether the credentials/config are correct, internally it is making one http request to check
 	Status(v error) error
 }
 
-// Loader is what the concrete integration can access
-type StreamLoader interface {
-	Load(config, state interface{}) error
-	WriteBatch(ctx context.Context, q *requests.Request, keys ...string) (*requests.JSONResponse, error)
-	State(v interface{}) error
-	Fields() []string
+type RunnerFunc func(ctx context.Context, pw StreamLoader) error
+
+func (r RunnerFunc) Run(ctx context.Context, pw StreamLoader) error {
+	return r(ctx, pw)
 }
 
-type Stream struct {
-	Name string
-}
-type Streams []Stream
+type Streams []Schema
 
 func (streams Streams) Contains(name string) bool {
 	isOk := len(streams) == 0
@@ -57,10 +86,10 @@ type Settings struct {
 	Streams Streams
 }
 
-func Open(r io.Reader, w io.Writer) (Proto, error) {
+func Open(r io.Reader, w io.Writer, cmd cmd) (Proto, error) {
 
 	var p fastjson.Parser
-	var i = &integration{states: map[string][]byte{}, _w: w}
+	var i = &integration{states: map[string][]byte{}, _w: w, cmd: cmd}
 	var buf []byte
 
 	var marshal = func(v *fastjson.Value) []byte {
@@ -127,12 +156,6 @@ func Keys(schema *jsonschema.Document) []string {
 	return o
 }
 
-type RunnerFunc func(ctx context.Context, pw StreamLoader) error
-
-func (r RunnerFunc) Run(ctx context.Context, pw StreamLoader) error {
-	return r(ctx, pw)
-}
-
 type MaskedString string
 
 func (s MaskedString) String() string {
@@ -147,15 +170,10 @@ func (s MaskedString) MarshalJSON() ([]byte, error) {
 	return []byte(s.Masked()), nil
 }
 
-type Runner interface {
-	// Run runs the sync job
-	Run(ctx context.Context, loader StreamLoader) error
-}
-
-type runners map[string]runnerTyp
+type runners []runnerTyp
 type runnerTyp struct {
-	fn  Runner
-	typ interface{}
+	fn     Runner
+	schema Schema
 }
 
 type runner struct {
@@ -167,18 +185,27 @@ func (r *runner) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	var p = strings.Split(request.URL.Path, "/")
 	var last = p[len(p)-1]
 
-	if err := r.Handle(request.Context(), writer, last, request.Body); err != nil {
+	if err := r.Handle(request.Context(), writer, cmd(last), request.Body); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (r *runner) Handle(ctx context.Context, writer io.Writer, path string, rd io.Reader) error {
-	proto, err := Open(rd, writer)
+type cmd string
+
+const (
+	cmdSpec     cmd = "spec"
+	cmdCheck    cmd = "check"
+	cmdDiscover cmd = "discover"
+	cmdRead     cmd = "read"
+)
+
+func (r *runner) Handle(ctx context.Context, writer io.Writer, cmd cmd, rd io.Reader) error {
+	proto, err := Open(rd, writer, cmd)
 	if err != nil {
 		return err
 	}
 
-	err = r.handle(ctx, proto, path)
+	err = r.handle(ctx, proto, cmd)
 	closeErr := proto.Close()
 
 	if err != nil {
@@ -188,15 +215,15 @@ func (r *runner) Handle(ctx context.Context, writer io.Writer, path string, rd i
 	}
 }
 
-func (r *runner) handle(ctx context.Context, proto Proto, path string) error {
-	switch path {
-	case "spec":
+func (r *runner) handle(ctx context.Context, proto Proto, cmd cmd) error {
+	switch cmd {
+	case cmdSpec:
 		return r.Spec(ctx, proto)
-	case "validate", "check":
+	case cmdCheck:
 		return r.Check(ctx, proto)
-	case "discover":
+	case cmdDiscover:
 		return r.Run(ctx, proto, false)
-	case "read":
+	case cmdRead:
 		return r.Run(ctx, proto, true)
 	default:
 		return fmt.Errorf("invalid path")
@@ -204,11 +231,16 @@ func (r *runner) handle(ctx context.Context, proto Proto, path string) error {
 }
 
 func NewLoader(config interface{}) *runner {
-	return &runner{runners: map[string]runnerTyp{}, config: config}
+	return &runner{config: config}
 }
 
-func (r *runner) Stream(name string, runner Runner, typ interface{}) *runner {
-	r.runners[name] = runnerTyp{typ: typ, fn: runner}
+type Loader interface {
+	http.Handler
+	Validate() error
+}
+
+func (r *runner) Add(schema SchemaBuilder, runner Runner) *runner {
+	r.runners = append(r.runners, runnerTyp{schema: schema.Schema, fn: runner})
 	return r
 }
 
@@ -232,9 +264,18 @@ func (m *validatorLoader) WriteBatch(ctx context.Context, q *requests.Request, k
 
 var validatorOK = fmt.Errorf("validatorOK")
 
+func (r *runner) Validate() error {
+	for _, runner := range r.runners {
+		if err := runner.schema.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *runner) Check(ctx context.Context, proto Proto) error {
-	for stream, runner := range r.runners {
-		pw := proto.Open(stream, runner.typ)
+	for _, runner := range r.runners {
+		pw := proto.Open(runner.schema)
 		if err := runner.fn.Run(ctx, &validatorLoader{ExtendedStreamLoader: pw}); err == validatorOK {
 			return pw.Status(nil)
 		} else if err != nil {
@@ -244,50 +285,63 @@ func (r *runner) Check(ctx context.Context, proto Proto) error {
 	return fmt.Errorf("validation failed: unexpected error")
 }
 
-func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
-	var streams = proto.Streams()
-	wg, ctx := errgroup.WithContext(ctx)
-	for stream, runner := range r.runners {
-		if !streams.Contains(stream) {
-			continue
-		}
-		stream, runner := stream, runner // copy
-		wg.Go(func() (err error) {
-			return run(ctx, proto, stream, runner, sync)
-		})
-	}
-	return wg.Wait()
+func (r *runner) Discover(ctx context.Context, proto Proto) error {
+	return r.Run(ctx, proto, false)
 }
 
-func run(ctx context.Context, proto Proto, stream string, runner runnerTyp, sync bool) (err error) {
-	pw := proto.Open(stream, runner.typ)
-	defer func() {
-		if pErr := recover(); pErr != nil {
-			err = panicErr(debug.Stack())
-		}
-		if err != nil {
-			err = pw.Log(err)
-		}
-	}()
-
-	if err := pw.Schema(runner.typ); err != nil {
-		return err
-	} else if sync {
-		return runner.fn.Run(ctx, pw)
-	}
-	return nil
+type ConnectorSpecification struct {
+	DocumentationURL        string               `json:"documentationUrl,omitempty"`
+	SupportsIncremental     bool                 `json:"supportsIncremental"`
+	ConnectionSpecification *jsonschema.Document `json:"connectionSpecification"`
 }
 
 func (r *runner) Spec(ctx context.Context, proto Proto) error {
-	type ConnectorSpecification struct {
-		DocumentationURL        string               `json:"documentationUrl,omitempty"`
-		SupportsIncremental     bool                 `json:"supportsIncremental"`
-		ConnectionSpecification *jsonschema.Document `json:"connectionSpecification"`
-	}
 
 	return proto.Spec(ConnectorSpecification{
 		DocumentationURL:        "127.0.0.1/docs",
 		SupportsIncremental:     true, // why is this important to share?
 		ConnectionSpecification: jsonschema.New(r.config),
 	})
+}
+
+func (r *runner) Read(ctx context.Context, proto Proto) error {
+	return r.Run(ctx, proto, true)
+}
+
+func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
+	var streams = proto.Streams()
+	wg, ctx := errgroup.WithContext(ctx)
+	for _, runner := range r.runners {
+		runner := runner // copy
+
+		if !streams.Contains(runner.schema.Name) {
+			continue
+		}
+
+		wg.Go(func() (err error) {
+			return run(ctx, proto, runner, sync)
+		})
+	}
+	return wg.Wait()
+}
+
+func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err error) {
+	pw := proto.Open(runner.schema)
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			var s = debug.Stack()
+			log.Println(string(s))
+			err = panicErr(s)
+		}
+		if err != nil {
+			err = pw.Log(err)
+		}
+	}()
+
+	if err := pw.WriteSchema(runner.schema); err != nil {
+		return err
+	} else if sync {
+		return runner.fn.Run(ctx, pw)
+	}
+	return nil
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/ajzo90/go-integ/pkg/integ"
 	"github.com/ajzo90/go-integ/pkg/shopify"
 	"log"
 	"net/http"
@@ -10,9 +12,13 @@ import (
 
 func main() {
 
-	var loaders = map[string]http.Handler{
-		"shopify":  shopify.Loader,
-		"shopify2": shopify.Loader,
+	var loaders = map[string]integ.Loader{
+		"shopify": shopify.Loader,
+	}
+	for name, loader := range loaders {
+		if err := loader.Validate(); err != nil {
+			panic(fmt.Errorf("validation error in %s: %v", name, err))
+		}
 	}
 
 	var h = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

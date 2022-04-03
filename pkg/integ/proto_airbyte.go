@@ -13,16 +13,22 @@ type airbyteProto struct {
 	*integration
 }
 
-func (m *airbyteProto) Open(name string, typ interface{}) ExtendedStreamLoader {
-	return &airbyteStream{rec: newWrap("RECORD", name), jsonStream: jsonStream{i: m.integration, typ: typ, stream: name}}
+func (m *airbyteProto) Open(schema Schema) ExtendedStreamLoader {
+	return &airbyteStream{rec: newWrap("RECORD", schema.Name), jsonStream: jsonStream{i: m.integration, schema: schema}, state: map[string]interface{}{}}
 }
 
 // Close flushes remaining data (state, streams)
 func (m *airbyteProto) Close() error {
+	switch m.cmd {
+	case cmdDiscover:
+		// write streams
+	case cmdRead:
+		// write state
+	}
 	return nil
 }
 
-func (m *airbyteProto) Spec(v interface{}) error {
+func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 	return m.encode(struct {
 		Type string      `json:"type"`
 		Spec interface{} `json:"spec"`
@@ -52,13 +58,13 @@ func (m *airbyteStream) WriteBatch(ctx context.Context, q *requests.Request, key
 	return resp, m.i.Write(m.recBuf)
 }
 
-func (m *airbyteStream) Schema(v interface{}) error {
+func (m *airbyteStream) WriteSchema(v Schema) error {
 	m.streams = append(m.streams, v)
 	return nil
 }
 
 func (m *airbyteStream) State(v interface{}) error {
-	m.state[m.stream] = v
+	m.state[m.schema.Name] = v
 	return nil
 }
 

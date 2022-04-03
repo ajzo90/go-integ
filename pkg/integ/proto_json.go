@@ -23,17 +23,16 @@ func (m *jsonStream) Status(v error) error {
 
 type jsonStream struct {
 	i      *integration
-	typ    interface{}
-	stream string
+	schema Schema
 	recBuf []byte
 }
 
 func (m *jsonStream) Load(config, state interface{}) error {
-	return m.i.Load(m.stream, config, state)
+	return m.i.Load(m.schema.Name, config, state)
 }
 
-func (m *jsonStream) Fields() []string {
-	return Keys(jsonschema.New(m.typ))
+func (m *jsonStream) Schema() Schema {
+	return m.schema
 }
 
 func (m *jsonStream) State(v interface{}) error {
@@ -43,19 +42,19 @@ func (m *jsonStream) State(v interface{}) error {
 		State  interface{} `json:"state"`
 	}{
 		Type:   "STATE",
-		Stream: m.stream,
+		Stream: m.schema.Name,
 		State:  v,
 	})
 }
 
-func (m *jsonStream) Schema(v interface{}) error {
+func (m *jsonStream) WriteSchema(v Schema) error {
 	return m.i.encode(struct {
 		Type   string      `json:"type"`
 		Stream string      `json:"stream"`
 		Schema interface{} `json:"schema"`
 	}{
 		Type:   "SCHEMA",
-		Stream: m.stream,
+		Stream: m.schema.Name,
 		Schema: jsonschema.New(v),
 	})
 }
@@ -67,12 +66,13 @@ func (m *jsonStream) Log(v interface{}) error {
 		Log    interface{} `json:"log"`
 	}{
 		Type:   "LOG",
-		Stream: m.stream,
-		Log:    jsonschema.New(v),
+		Stream: m.schema.Name,
+		Log:    v,
 	})
 }
 
 type integration struct {
+	cmd      cmd
 	settings Settings
 	config   []byte
 	states   map[string][]byte
