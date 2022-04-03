@@ -3,45 +3,32 @@ package shopify
 import (
 	"context"
 	"github.com/ajzo90/go-integ/pkg/integ"
-	"github.com/ajzo90/go-jsonschema-generator"
 	"github.com/ajzo90/go-requests"
 	"net/http"
 	"strings"
 	"time"
 )
 
-var ShopifyLoader = integ.NewLoader(config{}).
-	Stream("users", Runner("customers", user{}), user{}).
-	Stream("items", Runner("products", item{}), item{})
+var Loader = integ.NewLoader(config{}).
+	Stream("users", Runner("customers"), user{}).
+	Stream("items", Runner("products"), item{}).
+	Stream("orders", Runner("orders"), order{})
 
 type config struct {
-	ApiKey string `json:"api_key" formType:"secret"`
-	Url    string `json:"url" formType:"url"`
+	ApiKey     string `json:"api_key" formType:"secret"`
+	Url        string `json:"url" formType:"url" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
+	ApiVersion string `json:"api_version" options:"[2021-10]"`
 }
 
-type user struct {
-	ID               int    `json:"id" isKey:"true"`
-	Email            string `json:"email" isHashed:"true"`
-	CreatedAt        string `json:"created_at"`
-	VerifiedEmail    bool   `json:"verified_email"`
-	AcceptsMarketing bool   `json:"accepts_marketing"`
+func Runner(path string) integ.Runner {
+	return &runner{path: path}
 }
 
-type item struct {
-	Id    string  `json:"id" isKey:"true"`
-	Price float64 `json:"price"`
+type runner struct {
+	path string
 }
 
-func Runner(path string, v interface{}) integ.Runner {
-	return &shopifyRunner{path: path, fields: integ.Keys(jsonschema.New(v))}
-}
-
-type shopifyRunner struct {
-	path   string
-	fields []string
-}
-
-func (s shopifyRunner) Run(ctx context.Context, loader integ.Loader) error {
+func (s *runner) Run(ctx context.Context, loader integ.Loader) error {
 	var state struct {
 		To time.Time
 	}
@@ -62,7 +49,7 @@ func (s shopifyRunner) Run(ctx context.Context, loader integ.Loader) error {
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
-		Query("fields", strings.Join(s.fields, ",")).
+		Query("fields", strings.Join(loader.Fields(), ",")).
 		Query("status", "any")
 
 	for {
