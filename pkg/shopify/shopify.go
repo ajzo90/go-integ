@@ -11,13 +11,25 @@ import (
 
 var Loader = integ.NewLoader(config{}).
 	Stream("users", Runner("customers"), user{}).
-	Stream("items", Runner("products"), item{}).
 	Stream("orders", Runner("orders"), order{})
 
 type config struct {
-	ApiKey     string `json:"api_key" formType:"secret"`
-	Url        string `json:"url" formType:"url" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
-	ApiVersion string `json:"api_version" options:"[2021-10]"`
+	ApiKey        integ.MaskedString `json:"api_key" formType:"secret"`
+	Url           string             `json:"url" formType:"url" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
+	ApiVersion    string             `json:"api_version" options:"[2021-10]"`
+	MaxWindowDays int                `json:"max_window_days"`
+}
+
+var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
+
+}))
+
+func (config *config) client() *requests.Request {
+	return requests.
+		New(config.Url).
+		Method(http.MethodGet).
+		SecretHeader("X-Shopify-Access-Token", config.ApiKey).
+		Extended().Doer(doer).Clone()
 }
 
 func Runner(path string) integ.Runner {
@@ -28,7 +40,7 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx context.Context, loader integ.Loader) error {
+func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
 	var state struct {
 		To time.Time
 	}
@@ -39,13 +51,7 @@ func (s *runner) Run(ctx context.Context, loader integ.Loader) error {
 
 	from, to := timeWindow(state.To)
 
-	var newQ = requests.
-		New(config.Url).
-		Method(http.MethodGet).
-		SecretHeader("X-Shopify-Access-Token", config.ApiKey).
-		Extended().Doer(http.DefaultClient).Clone
-
-	var q = newQ().
+	var q = config.client().
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
@@ -59,7 +65,7 @@ func (s *runner) Run(ctx context.Context, loader integ.Loader) error {
 			state.To = to
 			return loader.State(state)
 		} else {
-			q = newQ().Url(next)
+			q = config.client().Url(next)
 		}
 	}
 }

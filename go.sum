@@ -4,6 +4,10 @@ github.com/ajzo90/go-requests v0.0.2 h1:z/uI9gK/XQag4C+HtvI2HG4m86aSGE7os9sdU0p8
 github.com/ajzo90/go-requests v0.0.2/go.mod h1:k/VLC/84nCqO4w+Zblx7HS92y8i7d2jfdQS1cwYI2CI=
 github.com/ajzo90/go-requests v0.0.3-0.20220401090839-9e532c116c9f h1:sN7tauTZcaCHAz9cHCt2Yc+98/nBtJ2K3dtWO23fZRA=
 github.com/ajzo90/go-requests v0.0.3-0.20220401090839-9e532c116c9f/go.mod h1:8kjJKSyvJTiOqH4NN08eBs0lXPoP/oqlTazmbeti41I=
+github.com/ajzo90/go-requests v0.0.3-0.20220403132002-747409cf5da7 h1:3BuRMD9K5NZ/bu0fFMaXAsU8NipWlsANO4CU4yWhFKY=
+github.com/ajzo90/go-requests v0.0.3-0.20220403132002-747409cf5da7/go.mod h1:8kjJKSyvJTiOqH4NN08eBs0lXPoP/oqlTazmbeti41I=
+github.com/ajzo90/go-requests v0.0.3-0.20220403133024-bac0482bec69 h1:2oVQu02ZwLwha1WLBLF1FlKO0cNpgGE3Xdh6P2YzXbU=
+github.com/ajzo90/go-requests v0.0.3-0.20220403133024-bac0482bec69/go.mod h1:8kjJKSyvJTiOqH4NN08eBs0lXPoP/oqlTazmbeti41I=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/matryer/is v1.4.0 h1:sosSmIWwkYITGrxZ25ULNDeKiMNzFSr4V/eqBQP0PeE=
