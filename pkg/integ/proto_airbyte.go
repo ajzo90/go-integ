@@ -7,31 +7,49 @@ import (
 )
 
 var AirbyteProto ProtoFn = func(p *Protocol) Proto {
-	return &airbyteProto{p}
+	return &airbyteProto{Protocol: p, regState: map[string]interface{}{}}
 }
 
 type airbyteProto struct {
 	*Protocol
+	regState map[string]interface{}
+	schemas  []Schema
 }
 
 type airbyteStream struct {
 	jsonStream
-	streams []interface{}
-	state   map[string]interface{}
-	rec     *fastjson.Value
+	streams  []interface{}
+	rec      *fastjson.Value
+	regState func(v interface{})
 }
 
 func (m *airbyteProto) Open(schema Schema) ExtendedStreamLoader {
-	return &airbyteStream{rec: newWrap("RECORD", schema.Name), jsonStream: jsonStream{i: m.Protocol, schema: schema}, state: map[string]interface{}{}}
+	var regState = func(v interface{}) {
+		m.regState[schema.Name] = v
+	}
+	m.schemas = append(m.schemas, schema)
+	return &airbyteStream{regState: regState, rec: newWrap("RECORD", schema.Name), jsonStream: jsonStream{i: m.Protocol, schema: schema}}
 }
 
 // Close flushes remaining data (state, streams)
 func (m *airbyteProto) Close() error {
 	switch m.cmd {
 	case cmdDiscover:
-		// write streams
+		return m.encode(struct {
+			Type    string      `json:"type"`
+			Catalog interface{} `json:"catalog"`
+		}{
+			Type:    "CATALOG",
+			Catalog: m.schemas,
+		})
 	case cmdRead:
-		// write state
+		return m.encode(struct {
+			Type  string      `json:"type"`
+			State interface{} `json:"state"`
+		}{
+			Type:  "STATE",
+			State: m.regState,
+		})
 	}
 	return nil
 }
@@ -46,7 +64,7 @@ func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 	})
 }
 
-func (m *airbyteStream) WriteBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
+func (m *airbyteStream) Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
 	err := req.Extended().ExecJSONPreAlloc(resp, ctx)
 	if err != nil {
 		return err
@@ -65,7 +83,7 @@ func (m *airbyteStream) WriteSchema(v Schema) error {
 }
 
 func (m *airbyteStream) State(v interface{}) error {
-	m.state[m.schema.Name] = v
+	m.regState(v)
 	return nil
 }
 

@@ -17,7 +17,7 @@ type Protocol struct {
 	wMtx     sync.Mutex
 }
 
-func (i *Protocol) Streams() Streams {
+func (i *Protocol) ActiveStreams() Streams {
 	return i.settings.Streams
 }
 

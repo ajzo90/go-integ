@@ -9,15 +9,13 @@ import (
 	"time"
 )
 
-var Loader = integ.NewLoader(config{}).
+var Loader = integ.New(config{}).
 	Add(users, Runner("customers")).
 	Add(orders, Runner("orders"))
 
 type config struct {
-	ApiKey        integ.MaskedString `json:"api_key" formType:"secret"`
-	Url           string             `json:"url" formType:"url" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
-	ApiVersion    string             `json:"api_version" options:"[2021-10]"`
-	MaxWindowDays int                `json:"max_window_days"`
+	ApiKey integ.MaskedString `json:"api_key"`
+	Url    string             `json:"url" default:"x" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
 }
 
 var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
@@ -39,12 +37,12 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
+func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
 	var state struct {
 		To time.Time
 	}
 	var config config
-	if err := loader.Load(&config, &state); err != nil {
+	if err := extractor.Load(&config, &state); err != nil {
 		return err
 	}
 
@@ -54,15 +52,15 @@ func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
-		Query("fields", strings.Join(loader.Schema().FieldKeys(), ",")).
+		Query("fields", strings.Join(extractor.Schema().FieldKeys(), ",")).
 		Query("status", "any")
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := loader.WriteBatch(ctx, req, resp, s.path); err != nil {
+		if err := extractor.Batch(ctx, req, resp, s.path); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
-			return loader.State(state)
+			return extractor.State(state)
 		} else {
 			req = config.request().Url(next)
 		}

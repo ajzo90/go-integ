@@ -20,43 +20,42 @@ import (
 
 type Runner interface {
 	// Run runs the sync job.
-	Run(ctx context.Context, loader StreamLoader) error
+	Run(ctx context.Context, loader Extractor) error
 }
 
-// StreamLoader is what the concrete integration can access
-type StreamLoader interface {
-	// Load a stream with config(shared) and state
+// Extractor is what the concrete integration can access
+type Extractor interface {
+	// Load a stream with shared config and state
 	Load(config, state interface{}) error
 
-	// WriteBatch emit records from a prepared http request
+	Schema() Schema
+
+	// Batch emit records from a prepared http request
 	// (probably) called multiple times
-	WriteBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
+	// resp: (pre-allocated and reusable)
+	// keys: (path to the data array)
+	Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
 
 	// State emit the state
 	State(v interface{}) error
-
-	Schema() Schema
 }
 
 type Proto interface {
-	// Open a new stream loader
+	// Open a new stream loader. Should emit or record the schema information
 	Open(typ Schema) ExtendedStreamLoader
 
 	// Spec defines the available streams
 	Spec(ConnectorSpecification) error
 
-	// Close closes the current session
+	// Close closes the current session. Flushes pending data
 	Close() error
 
-	// Streams defines the active streams. 0 streams disable the filtering.
-	Streams() Streams
+	// ActiveStreams defines the active streams. 0 streams disable the filtering.
+	ActiveStreams() Streams
 }
 
 type ExtendedStreamLoader interface {
-	StreamLoader
-
-	// WriteSchema emit the schema
-	WriteSchema(v Schema) error
+	Extractor
 
 	// Log something
 	Log(v interface{}) error
@@ -65,9 +64,9 @@ type ExtendedStreamLoader interface {
 	Status(v error) error
 }
 
-type RunnerFunc func(ctx context.Context, pw StreamLoader) error
+type RunnerFunc func(ctx context.Context, pw Extractor) error
 
-func (r RunnerFunc) Run(ctx context.Context, pw StreamLoader) error {
+func (r RunnerFunc) Run(ctx context.Context, pw Extractor) error {
 	return r(ctx, pw)
 }
 
@@ -237,7 +236,7 @@ func (r *runner) handle(ctx context.Context, proto Proto, cmd cmd) error {
 	}
 }
 
-func NewLoader(config interface{}) *runner {
+func New(config interface{}) *runner {
 	return &runner{config: config}
 }
 
@@ -262,7 +261,7 @@ type validatorLoader struct {
 	ExtendedStreamLoader
 }
 
-func (m *validatorLoader) WriteBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
+func (m *validatorLoader) Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
 	if err := req.Extended().ExecJSONPreAlloc(resp, ctx); err != nil {
 		return err
 	} else {
@@ -317,7 +316,7 @@ func (r *runner) Read(ctx context.Context, proto Proto) error {
 }
 
 func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
-	var streams = proto.Streams()
+	var streams = proto.ActiveStreams()
 	wg, ctx := errgroup.WithContext(ctx)
 	for _, runner := range r.runners {
 		runner := runner // copy
@@ -346,9 +345,7 @@ func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err err
 		}
 	}()
 
-	if err := pw.WriteSchema(runner.schema); err != nil {
-		return err
-	} else if sync {
+	if sync {
 		return runner.fn.Run(ctx, pw)
 	}
 	return nil

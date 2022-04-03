@@ -43,7 +43,7 @@ func generateToken(url, user, pw string) (string, error) {
 	return resp.String(), nil
 }
 
-func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
+func (s *runner) Run(ctx context.Context, loader integ.Extractor) error {
 
 	var config config
 	if err := loader.Load(&config, nil); err != nil {
@@ -63,7 +63,7 @@ func (s *runner) Run(ctx context.Context, loader integ.StreamLoader) error {
 		Extended().Clone
 
 	//for {
-	//	if resp, err := loader.WriteBatch(ctx, v()); err != nil {
+	//	if resp, err := loader.Batch(ctx, v()); err != nil {
 	//		return err
 	//	}
 	//
