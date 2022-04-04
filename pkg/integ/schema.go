@@ -29,7 +29,7 @@ func NonIncremental(name string, typ interface{}) SchemaBuilder {
 }
 
 func Incremental(name string, typ interface{}) SchemaBuilder {
-	var v = NonIncremental(name, typ)
+	v := NonIncremental(name, typ)
 	v.Incremental = true
 	return v
 }
@@ -73,11 +73,11 @@ func (s Schema) FieldKeys() []string {
 	return Keys(jsonschema.New(s.GoType))
 }
 
-//SupportedSyncModes      []SyncMode `json:"supported_sync_modes,omitempty"`
-//SourceDefinedCursor     bool       `json:"source_defined_cursor,omitempty"`
-//DefaultCursorField      []string   `json:"default_cursor_field,omitempty"`
-//SourceDefinedPK [][]string `json:"source_defined_primary_key,omitempty"`
-//Namespace               string     `json:"namespace"`
+// SupportedSyncModes      []SyncMode `json:"supported_sync_modes,omitempty"`
+// SourceDefinedCursor     bool       `json:"source_defined_cursor,omitempty"`
+// DefaultCursorField      []string   `json:"default_cursor_field,omitempty"`
+// SourceDefinedPK [][]string `json:"source_defined_primary_key,omitempty"`
+// Namespace               string     `json:"namespace"`
 
 type FieldDef struct {
 	Path          []string
@@ -98,6 +98,7 @@ func (f FieldDef) Asc() FieldDef {
 	f.SortOrder = "ASC"
 	return f
 }
+
 func (f FieldDef) Desc() FieldDef {
 	f.SortOrder = "DESC"
 	return f

@@ -3,11 +3,12 @@ package storm
 import (
 	"context"
 	"fmt"
-	"github.com/ajzo90/go-integ/pkg/integ"
-	"github.com/ajzo90/go-requests"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/ajzo90/go-integ/pkg/integ"
+	"github.com/ajzo90/go-requests"
 )
 
 var Loader = integ.New(config{}).
@@ -22,7 +23,6 @@ type config struct {
 }
 
 var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
-
 }))
 
 func Runner(path string) integ.Runner {
@@ -42,11 +42,11 @@ func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
 	if err := extractor.Load(&config, &state); err != nil {
 		return err
 	}
-	var newTo = time.Now()
+	newTo := time.Now()
 
-	var reqB = requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Clone
+	reqB := requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Doer(doer).Clone
 
-	var schema = extractor.Schema()
+	schema := extractor.Schema()
 
 	req := reqB().Path(s.path).Query("$select", strings.Join(schema.FieldKeys(), ","))
 

@@ -7,7 +7,6 @@ import (
 type jsonStream struct {
 	i      *Protocol
 	schema Schema
-	recBuf []byte
 }
 
 func (m *jsonStream) Load(config, state interface{}) error {

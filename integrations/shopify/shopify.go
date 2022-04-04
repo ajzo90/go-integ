@@ -2,11 +2,12 @@ package shopify
 
 import (
 	"context"
-	"github.com/ajzo90/go-integ/pkg/integ"
-	"github.com/ajzo90/go-requests"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/ajzo90/go-integ/pkg/integ"
+	"github.com/ajzo90/go-requests"
 )
 
 var Loader = integ.New(config{}).
@@ -19,7 +20,6 @@ type config struct {
 }
 
 var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
-
 }))
 
 func (config *config) request() *requests.Request {
@@ -48,7 +48,7 @@ func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
 
 	from, to := timeWindow(state.To)
 
-	var req = config.request().
+	req := config.request().
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
@@ -74,11 +74,11 @@ func timeWindow(old time.Time) (from, to time.Time) {
 	return old, time.Now()
 }
 
-//ParseNext extract the next-link from a shopify link header, see test for further details
+// ParseNext extract the next-link from a shopify link header, see test for further details
 func ParseNext(s string) string {
 	const nextRelSuffix = `; rel="next"`
 	for _, part := range strings.Split(s, ", ") {
-		var link = strings.TrimSuffix(part, nextRelSuffix)
+		link := strings.TrimSuffix(part, nextRelSuffix)
 		if len(link) != len(part) && len(link) > 2 && link[0] == '<' && link[len(link)-1] == '>' {
 			return link[1 : len(link)-1]
 		}

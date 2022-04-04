@@ -2,6 +2,7 @@ package integ
 
 import (
 	"context"
+
 	"github.com/ajzo90/go-requests"
 	"github.com/valyala/fastjson"
 )
@@ -21,10 +22,11 @@ type airbyteStream struct {
 	streams    []interface{}
 	rec        *fastjson.Value
 	regStateFn func(v interface{})
+	recBuf     []byte
 }
 
 func (m *airbyteProto) Open(schema Schema) ExtendedStreamLoader {
-	var regStateFn = func(v interface{}) {
+	regStateFn := func(v interface{}) {
 		m.regState[schema.Name] = v
 	}
 	m.schemas = append(m.schemas, schema)

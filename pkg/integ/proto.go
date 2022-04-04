@@ -6,16 +6,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ajzo90/go-jsonschema-generator"
-	"github.com/ajzo90/go-requests"
-	"github.com/valyala/fastjson"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"log"
 	"net/http"
 	"runtime/debug"
 	"sort"
 	"strings"
+
+	"github.com/ajzo90/go-jsonschema-generator"
+	"github.com/ajzo90/go-requests"
+	"github.com/valyala/fastjson"
+	"golang.org/x/sync/errgroup"
 )
 
 type Runner interface {
@@ -86,12 +87,11 @@ type Settings struct {
 }
 
 func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
-
 	var p fastjson.Parser
-	var i = &Protocol{states: map[string][]byte{}, _w: w, cmd: cmd}
+	i := &Protocol{states: map[string][]byte{}, _w: w, cmd: cmd}
 	var buf []byte
 
-	var marshal = func(v *fastjson.Value) []byte {
+	marshal := func(v *fastjson.Value) []byte {
 		if v == nil {
 			return nil
 		}
@@ -100,9 +100,9 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 		return append(out, buf...)
 	}
 
-	var scanner = bufio.NewScanner(r)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		var b = scanner.Bytes()
+		b := scanner.Bytes()
 		if len(b) == 0 {
 			continue
 		}
@@ -119,7 +119,7 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 		case "CONFIG":
 			i.config = marshal(v.Get("config"))
 		case STATE:
-			var stream = string(v.GetStringBytes("stream"))
+			stream := string(v.GetStringBytes("stream"))
 			i.states[stream] = marshal(v.Get("state"))
 		default:
 			return nil, fmt.Errorf("invalid type '%s'", t)
@@ -130,9 +130,9 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 		return nil, err
 	}
 
-	var useGlobalState = len(i.states[""]) > 0
+	useGlobalState := len(i.states[""]) > 0
 	if useGlobalState {
-		var states = map[string]json.RawMessage{}
+		states := map[string]json.RawMessage{}
 
 		if err := json.NewDecoder(bytes.NewReader(i.states[""])).Decode(&states); err != nil {
 			panic(err)
@@ -152,7 +152,7 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 
 func newWrap(typ msgType, stream string) *fastjson.Value {
 	var a fastjson.Arena
-	var o = a.NewObject()
+	o := a.NewObject()
 	o.Set("type", a.NewString(string(typ)))
 	o.Set("stream", a.NewString(stream))
 	return o
@@ -181,11 +181,13 @@ func (s MaskedString) MarshalJSON() ([]byte, error) {
 	return []byte(s.Masked()), nil
 }
 
-type runners []runnerTyp
-type runnerTyp struct {
-	fn     Runner
-	schema Schema
-}
+type (
+	runners   []runnerTyp
+	runnerTyp struct {
+		fn     Runner
+		schema Schema
+	}
+)
 
 type runner struct {
 	config  interface{}
@@ -194,8 +196,8 @@ type runner struct {
 }
 
 func (r *runner) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	var p = strings.Split(request.URL.Path, "/")
-	var last = p[len(p)-1]
+	p := strings.Split(request.URL.Path, "/")
+	last := p[len(p)-1]
 
 	if err := r.Handle(request.Context(), Command(last), writer, request.Body, r.protos); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -222,8 +224,10 @@ const (
 	SPEC              msgType = "SPEC"
 )
 
-type ProtoFn func(protocol *Protocol) Proto
-type Protos map[string]ProtoFn
+type (
+	ProtoFn func(protocol *Protocol) Proto
+	Protos  map[string]ProtoFn
+)
 
 func (r *runner) Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error {
 	proto, err := Open(rd, writer, cmd, protos)
@@ -328,7 +332,6 @@ type ConnectorSpecification struct {
 }
 
 func (r *runner) Spec(ctx context.Context, proto Proto) error {
-
 	return proto.Spec(ConnectorSpecification{
 		DocumentationURL:        "127.0.0.1/docs",
 		SupportsIncremental:     true, // why is this important to share?
@@ -341,7 +344,7 @@ func (r *runner) Read(ctx context.Context, proto Proto) error {
 }
 
 func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
-	var streams = proto.ActiveStreams()
+	streams := proto.ActiveStreams()
 	wg, ctx := errgroup.WithContext(ctx)
 	for _, runner := range r.runners {
 		runner := runner // copy
@@ -361,7 +364,7 @@ func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err err
 	pw := proto.Open(runner.schema)
 	defer func() {
 		if pErr := recover(); pErr != nil {
-			var s = debug.Stack()
+			s := debug.Stack()
 			log.Println(string(s))
 			err = panicErr(s)
 		}

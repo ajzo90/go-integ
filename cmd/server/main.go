@@ -3,18 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ajzo90/go-integ/integrations/shopify"
-	"github.com/ajzo90/go-integ/integrations/storm"
-	"github.com/ajzo90/go-integ/pkg/integ"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/ajzo90/go-integ/integrations/shopify"
+	"github.com/ajzo90/go-integ/integrations/storm"
+	"github.com/ajzo90/go-integ/pkg/integ"
 )
 
 var loaders = map[string]integ.Loader{
 	"shopify": shopify.Loader,
 	"storm":   storm.Loader,
 }
+
 var protos = integ.Protos{
 	"":     integ.AirbyteProto,
 	"mock": integ.AirbyteProto,
@@ -28,7 +30,7 @@ func main() {
 		loader.Protos(protos)
 	}
 
-	var h = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	h := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if strings.HasPrefix(request.URL.Path, "/discover") {
 			var o []string
 			for k := range loaders {
@@ -50,5 +52,4 @@ func main() {
 	})
 
 	log.Println(http.ListenAndServe(":9900", h))
-
 }

@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ajzo90/go-integ/integrations/shopify"
-	"github.com/ajzo90/go-integ/pkg/integ"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/ajzo90/go-integ/integrations/shopify"
+	"github.com/ajzo90/go-integ/pkg/integ"
 )
 
 func main() {
@@ -27,11 +28,11 @@ func Main(args []string, loader integ.Loader) error {
 	} else if len(args) < 2 {
 		return fmt.Errorf("usage: airbyte cmd [--config config] [--state state] [--catalog catalog]")
 	}
-	var cmd = args[1]
+	cmd := args[1]
 	args = args[2:]
 
 	b := bytes.NewBuffer(nil)
-	var enc = json.NewEncoder(b)
+	enc := json.NewEncoder(b)
 	if err := enc.Encode(map[string]interface{}{"type": "SETTINGS", "settings": map[string]interface{}{"format": "airbyte"}}); err != nil {
 		return err
 	}
@@ -41,7 +42,7 @@ func Main(args []string, loader integ.Loader) error {
 			continue
 		}
 
-		var m = map[string]interface{}{}
+		m := map[string]interface{}{}
 		b, err := ioutil.ReadFile(args[i+1])
 		if errors.Is(err, fs.ErrNotExist) {
 			b = []byte(args[i+1])
