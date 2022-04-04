@@ -110,7 +110,7 @@ func Open(r io.Reader, w io.Writer, cmd cmd, protos Protos) (Proto, error) {
 		if err != nil {
 			return nil, err
 		}
-		switch t := string(v.GetStringBytes("type")); t {
+		switch t := msgType(v.GetStringBytes("type")); t {
 		case "SETTINGS":
 			b := marshal(v.Get("settings"))
 			if err := json.NewDecoder(bytes.NewReader(b)).Decode(&i.settings); err != nil {
@@ -118,7 +118,7 @@ func Open(r io.Reader, w io.Writer, cmd cmd, protos Protos) (Proto, error) {
 			}
 		case "CONFIG":
 			i.config = marshal(v.Get("config"))
-		case "STATE":
+		case STATE:
 			var stream = string(v.GetStringBytes("stream"))
 			i.states[stream] = marshal(v.Get("state"))
 		default:
@@ -130,6 +130,19 @@ func Open(r io.Reader, w io.Writer, cmd cmd, protos Protos) (Proto, error) {
 		return nil, err
 	}
 
+	var useGlobalState = len(i.states[""]) > 0
+	if useGlobalState {
+		var states = map[string]json.RawMessage{}
+
+		if err := json.NewDecoder(bytes.NewReader(i.states[""])).Decode(&states); err != nil {
+			panic(err)
+		}
+		delete(i.states, "")
+		for k, v := range states {
+			i.states[k] = v
+		}
+	}
+
 	fn, ok := protos[i.settings.Format]
 	if !ok {
 		return nil, fmt.Errorf("not supported")
@@ -137,10 +150,10 @@ func Open(r io.Reader, w io.Writer, cmd cmd, protos Protos) (Proto, error) {
 	return fn(i), nil
 }
 
-func newWrap(typ string, stream string) *fastjson.Value {
+func newWrap(typ msgType, stream string) *fastjson.Value {
 	var a fastjson.Arena
 	var o = a.NewObject()
-	o.Set("type", a.NewString(typ))
+	o.Set("type", a.NewString(string(typ)))
 	o.Set("stream", a.NewString(stream))
 	return o
 }
@@ -196,6 +209,17 @@ const (
 	cmdCheck    cmd = "check"
 	cmdDiscover cmd = "discover"
 	cmdRead     cmd = "read"
+)
+
+type msgType string
+
+const (
+	RECORD            msgType = "RECORD"
+	STATE             msgType = "STATE"
+	LOG               msgType = "LOG"
+	CONNECTION_STATUS msgType = "CONNECTION_STATUS"
+	CATALOG           msgType = "CATALOG"
+	SPEC              msgType = "SPEC"
 )
 
 type ProtoFn func(protocol *Protocol) Proto
