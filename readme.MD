@@ -3,6 +3,8 @@
 Makes it simple to pull data from HTTP based data sources. Support singer and airbyte protocol, and can easily be
 extended to a custom protocol format.
 
+## WIP! Identifiers will likely change, the structure will likely be similar though.
+
 ## Example integration
 
 Shopify source with incremental sync
@@ -85,18 +87,50 @@ var orders = integ.Incremental("orders", struct {
 
 ```
 
+## The contract to implement
+
+To implement a source connector you have to fulfill the `Runner` interface
+
+```go
+type Runner interface {
+	// Run runs the sync job.
+	Run(ctx context.Context, loader Extractor) error
+}
+```
+
+where the `Extractor` argument is defined by the following interface
+
+```go
+
+// Extractor is what the concrete integration can access
+type Extractor interface {
+	// Load a stream with shared config and state
+	Load(config, state interface{}) error
+
+	Schema() Schema
+
+	// Batch emit records from a prepared http request
+	// (probably) called multiple times
+	// resp: (pre-allocated and reusable)
+	// keys: (path to the data array)
+	Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
+
+	// State emit the state
+	State(v interface{}) error
+}
+```
+
 ## Throttling, retries and request control
 
 [github.com/ajzo90/go-requests](https://github.com/ajzo90/go-requests) is using a request builder where the `Doer` (see below, but think client
-abstraction) can be injected to have full control over the http details. A common use case is to use a single doer(
-client) that is shared for all requests, and that can be responsible for not sending to many requests.
+abstraction) can be injected to have full control over the http details. A common use case is to use a single doer that is shared for all requests, and that can be responsible for not sending to many requests.
 
 The `requests.NewRetryer` is a nice default that handles `429` related headers combined with exponential backoff/retry
 for common transient http statuses. The `Doer` interface is easy to adjust according to specific needs.
 
 ```go
 var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func (id int, err error, msg string) {
-    // log intermediate errors here if you like 
+// log intermediate errors here if you like 
 }))
 ```
 
