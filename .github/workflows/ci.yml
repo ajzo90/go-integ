@@ -1,0 +1,29 @@
+name: golangci-lint
+on:
+  push:
+    branches-ignore:
+      - 'mona/octocat'
+  pull_request:
+    branches:
+      - mainXXX
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read
+jobs:
+  golangci:
+    strategy:
+      matrix:
+        go-version: [1.17]
+        os: [macos-latest]
+    name: lint
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }} # The Go version to download (if necessary) and use.
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3.1.0
+        with:
+          version: v1.44.2

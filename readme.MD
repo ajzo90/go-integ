@@ -3,6 +3,12 @@
 Makes it simple to pull data from HTTP based data sources. Support singer and airbyte protocol, and can easily be
 extended to a custom protocol format.
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/ajzo90/go-integ)](https://goreportcard.com/report/github.com/ajzo90/go-integ)
+[![GoDoc](https://godoc.org/github.com/ajzo90/go-integ?status.svg)](https://godoc.org/github.com/ajzo90/go-integ)
+[![License](https://shields.io/github/license/ajzo90/go-integ)](LICENSE)
+[![Latest Version](https://shields.io/github/v/release/ajzo90/go-integ?display_name=tag&sort=semver)](https://github.com/ajzo90/go-integ/releases)
+[![codecov](https://codecov.io/gh/ajzo90/go-integ/branch/main/graph/badge.svg?token=BDKHJVZCUY)](https://codecov.io/gh/ajzo90/go-integ)
+
 ## WIP! Identifiers will likely change, the structure will likely be similar though.
 
 ## Example integration
@@ -93,8 +99,8 @@ To implement a source connector you have to fulfill the `Runner` interface
 
 ```go
 type Runner interface {
-	// Run runs the sync job.
-	Run(ctx context.Context, loader Extractor) error
+// Run runs the sync job.
+Run(ctx context.Context, loader Extractor) error
 }
 ```
 
@@ -104,26 +110,27 @@ where the `Extractor` argument is defined by the following interface
 
 // Extractor is what the concrete integration can access
 type Extractor interface {
-	// Load a stream with shared config and state
-	Load(config, state interface{}) error
+// Load a stream with shared config and state
+Load(config, state interface{}) error
 
-	Schema() Schema
+Schema() Schema
 
-	// Batch emit records from a prepared http request
-	// (probably) called multiple times
-	// resp: (pre-allocated and reusable)
-	// keys: (path to the data array)
-	Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
+// Batch emit records from a prepared http request
+// (probably) called multiple times
+// resp: (pre-allocated and reusable)
+// keys: (path to the data array)
+Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
 
-	// State emit the state
-	State(v interface{}) error
+// State emit the state
+State(v interface{}) error
 }
 ```
 
 ## Throttling, retries and request control
 
-[github.com/ajzo90/go-requests](https://github.com/ajzo90/go-requests) is using a request builder where the `Doer` (see below, but think client
-abstraction) can be injected to have full control over the http details. A common use case is to use a single doer that is shared for all requests, and that can be responsible for not sending to many requests.
+[github.com/ajzo90/go-requests](https://github.com/ajzo90/go-requests) is using a request builder where the `Doer` (see
+below, but think client abstraction) can be injected to have full control over the http details. A common use case is to
+use a single doer that is shared for all requests, and that can be responsible for not sending to many requests.
 
 The `requests.NewRetryer` is a nice default that handles `429` related headers combined with exponential backoff/retry
 for common transient http statuses. The `Doer` interface is easy to adjust according to specific needs.
