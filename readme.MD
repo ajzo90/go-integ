@@ -87,13 +87,12 @@ var orders = integ.Incremental("orders", struct {
 
 ## Throttling, retries and request control
 
-`github.com/ajzo90/go-requests` is using a request builder where the `Doer` (see below, but think client
+[github.com/ajzo90/go-requests](https://github.com/ajzo90/go-requests) is using a request builder where the `Doer` (see below, but think client
 abstraction) can be injected to have full control over the http details. A common use case is to use a single doer(
 client) that is shared for all requests, and that can be responsible for not sending to many requests.
 
 The `requests.NewRetryer` is a nice default that handles `429` related headers combined with exponential backoff/retry
 for common transient http statuses. The `Doer` interface is easy to adjust according to specific needs.
-See `github.com/ajzo90/go-requests` for more details.
 
 ```go
 var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func (id int, err error, msg string) {
