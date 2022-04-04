@@ -9,7 +9,7 @@ import (
 )
 
 type Protocol struct {
-	cmd      cmd
+	cmd      Command
 	settings Settings
 	config   []byte
 	states   map[string][]byte

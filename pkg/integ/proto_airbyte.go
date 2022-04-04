@@ -97,13 +97,14 @@ const (
 func (m *airbyteStream) Status(err error) error {
 	type Status struct {
 		Status checkStatus `json:"status"`
+		Reason string      `json:"reason,omitempty"`
 	}
 	var s Status
 	s.Status = SUCCEEDED
 	if err != nil {
 		s.Status = FAILED
+		s.Reason = err.Error()
 	}
-
 	return m.i.encode(struct {
 		Type             msgType `json:"type"`
 		ConnectionStatus Status  `json:"connectionStatus"`

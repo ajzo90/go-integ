@@ -85,7 +85,7 @@ type Settings struct {
 	Streams Streams
 }
 
-func Open(r io.Reader, w io.Writer, cmd cmd, protos Protos) (Proto, error) {
+func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 
 	var p fastjson.Parser
 	var i = &Protocol{states: map[string][]byte{}, _w: w, cmd: cmd}
@@ -197,18 +197,18 @@ func (r *runner) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	var p = strings.Split(request.URL.Path, "/")
 	var last = p[len(p)-1]
 
-	if err := r.Handle(request.Context(), cmd(last), writer, request.Body, r.protos); err != nil {
+	if err := r.Handle(request.Context(), Command(last), writer, request.Body, r.protos); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-type cmd string
+type Command string
 
 const (
-	cmdSpec     cmd = "spec"
-	cmdCheck    cmd = "check"
-	cmdDiscover cmd = "discover"
-	cmdRead     cmd = "read"
+	cmdSpec     Command = "spec"
+	cmdCheck    Command = "check"
+	cmdDiscover Command = "discover"
+	cmdRead     Command = "read"
 )
 
 type msgType string
@@ -225,7 +225,7 @@ const (
 type ProtoFn func(protocol *Protocol) Proto
 type Protos map[string]ProtoFn
 
-func (r *runner) Handle(ctx context.Context, cmd cmd, writer io.Writer, rd io.Reader, protos Protos) error {
+func (r *runner) Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error {
 	proto, err := Open(rd, writer, cmd, protos)
 	if err != nil {
 		return err
@@ -245,7 +245,7 @@ func (r *runner) Protos(protos Protos) {
 	r.protos = protos
 }
 
-func (r *runner) handle(ctx context.Context, proto Proto, cmd cmd) error {
+func (r *runner) handle(ctx context.Context, proto Proto, cmd Command) error {
 	switch cmd {
 	case cmdSpec:
 		return r.Spec(ctx, proto)
@@ -268,6 +268,7 @@ type Loader interface {
 	http.Handler
 	Validate() error
 	Protos(Protos)
+	Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error
 }
 
 func (r *runner) Add(schema SchemaBuilder, runner Runner) *runner {
