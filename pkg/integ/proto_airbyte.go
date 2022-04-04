@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/ajzo90/go-requests"
 	"github.com/valyala/fastjson"
-	"log"
 )
 
 var AirbyteProto ProtoFn = func(p *Protocol) Proto {
@@ -19,17 +18,17 @@ type airbyteProto struct {
 
 type airbyteStream struct {
 	jsonStream
-	streams  []interface{}
-	rec      *fastjson.Value
-	regState func(v interface{})
+	streams    []interface{}
+	rec        *fastjson.Value
+	regStateFn func(v interface{})
 }
 
 func (m *airbyteProto) Open(schema Schema) ExtendedStreamLoader {
-	var regState = func(v interface{}) {
+	var regStateFn = func(v interface{}) {
 		m.regState[schema.Name] = v
 	}
 	m.schemas = append(m.schemas, schema)
-	return &airbyteStream{regState: regState, rec: newWrap("RECORD", schema.Name), jsonStream: jsonStream{i: m.Protocol, schema: schema}}
+	return &airbyteStream{regStateFn: regStateFn, rec: newWrap(RECORD, schema.Name), jsonStream: jsonStream{i: m.Protocol, schema: schema}}
 }
 
 // Close flushes remaining data (state, streams)
@@ -37,18 +36,18 @@ func (m *airbyteProto) Close() error {
 	switch m.cmd {
 	case cmdDiscover:
 		return m.encode(struct {
-			Type    string      `json:"type"`
-			Catalog interface{} `json:"catalog"`
+			Type    msgType  `json:"type"`
+			Catalog []Schema `json:"catalog"`
 		}{
-			Type:    "CATALOG",
+			Type:    CATALOG,
 			Catalog: m.schemas,
 		})
 	case cmdRead:
 		return m.encode(struct {
-			Type  string      `json:"type"`
+			Type  msgType     `json:"type"`
 			State interface{} `json:"state"`
 		}{
-			Type:  "STATE",
+			Type:  STATE,
 			State: m.regState,
 		})
 	}
@@ -57,10 +56,10 @@ func (m *airbyteProto) Close() error {
 
 func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 	return m.encode(struct {
-		Type string      `json:"type"`
+		Type msgType     `json:"type"`
 		Spec interface{} `json:"spec"`
 	}{
-		Type: "SPEC",
+		Type: SPEC,
 		Spec: v,
 	})
 }
@@ -68,11 +67,9 @@ func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 func (m *airbyteStream) Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
 	err := req.Extended().ExecJSONPreAlloc(resp, ctx)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 	m.recBuf = m.recBuf[:0]
-	log.Println(len(resp.GetArray(keys...)))
 	for _, v := range resp.GetArray(keys...) {
 		m.rec.Set("record", v)
 		m.recBuf = append(m.rec.MarshalTo(m.recBuf), '\n')
@@ -86,25 +83,32 @@ func (m *airbyteStream) WriteSchema(v Schema) error {
 }
 
 func (m *airbyteStream) State(v interface{}) error {
-	m.regState(v)
+	m.regStateFn(v)
 	return nil
 }
 
+type checkStatus string
+
+const (
+	SUCCEEDED checkStatus = "SUCCEEDED"
+	FAILED    checkStatus = "FAILED"
+)
+
 func (m *airbyteStream) Status(err error) error {
 	type Status struct {
-		Status string `json:"status"`
+		Status checkStatus `json:"status"`
 	}
 	var s Status
-	s.Status = "SUCCEEDED"
+	s.Status = SUCCEEDED
 	if err != nil {
-		s.Status = "FAILED"
+		s.Status = FAILED
 	}
 
 	return m.i.encode(struct {
-		Type             string `json:"type"`
-		ConnectionStatus Status `json:"connectionStatus"`
+		Type             msgType `json:"type"`
+		ConnectionStatus Status  `json:"connectionStatus"`
 	}{
-		Type:             "CONNECTION_STATUS",
+		Type:             CONNECTION_STATUS,
 		ConnectionStatus: s,
 	})
 }

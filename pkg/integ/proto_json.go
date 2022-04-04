@@ -20,11 +20,11 @@ func (m *jsonStream) Schema() Schema {
 
 func (m *jsonStream) State(v interface{}) error {
 	return m.i.encode(struct {
-		Type   string      `json:"type"`
+		Type   msgType     `json:"type"`
 		Stream string      `json:"stream"`
 		State  interface{} `json:"state"`
 	}{
-		Type:   "STATE",
+		Type:   STATE,
 		Stream: m.schema.Name,
 		State:  v,
 	})
@@ -44,11 +44,11 @@ func (m *jsonStream) WriteSchema(v Schema) error {
 
 func (m *jsonStream) Log(v interface{}) error {
 	return m.i.encode(struct {
-		Type   string      `json:"type"`
+		Type   msgType     `json:"type"`
 		Stream string      `json:"stream"`
 		Log    interface{} `json:"log"`
 	}{
-		Type:   "LOG",
+		Type:   LOG,
 		Stream: m.schema.Name,
 		Log:    logErr(v),
 	})
