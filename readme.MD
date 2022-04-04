@@ -3,6 +3,8 @@
 Makes it simple to pull data from HTTP based data sources. Support singer and airbyte protocol, and can easily be
 extended to a custom protocol format.
 
+[![CICD](https://github.com/ajzo90/go-integ/actions/workflows/ci.yml/badge.svg)](https://github.com/ajzo90/go-integ/actions/workflows/ci.yml)
+[![CICD](https://github.com/ajzo90/go-integ/actions/workflows/go.yml/badge.svg)](https://github.com/ajzo90/go-integ/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ajzo90/go-integ)](https://goreportcard.com/report/github.com/ajzo90/go-integ)
 [![GoDoc](https://godoc.org/github.com/ajzo90/go-integ?status.svg)](https://godoc.org/github.com/ajzo90/go-integ)
 [![License](https://shields.io/github/license/ajzo90/go-integ)](LICENSE)
