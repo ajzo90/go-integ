@@ -1,4 +1,4 @@
-# go-integ (final name TBF)
+# go-integ (final name TBD)
 
 Makes it simple to pull data from HTTP based data sources. Support singer and airbyte protocol, and can easily be
 extended to a custom protocol format.
