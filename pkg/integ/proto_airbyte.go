@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ajzo90/go-requests"
 	"github.com/valyala/fastjson"
+	"log"
 )
 
 var AirbyteProto ProtoFn = func(p *Protocol) Proto {
@@ -67,9 +68,11 @@ func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 func (m *airbyteStream) Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
 	err := req.Extended().ExecJSONPreAlloc(resp, ctx)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	m.recBuf = m.recBuf[:0]
+	log.Println(len(resp.GetArray(keys...)))
 	for _, v := range resp.GetArray(keys...) {
 		m.rec.Set("record", v)
 		m.recBuf = append(m.rec.MarshalTo(m.recBuf), '\n')

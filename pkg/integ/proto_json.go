@@ -50,6 +50,13 @@ func (m *jsonStream) Log(v interface{}) error {
 	}{
 		Type:   "LOG",
 		Stream: m.schema.Name,
-		Log:    v,
+		Log:    logErr(v),
 	})
+}
+
+func logErr(v interface{}) interface{} {
+	if err, ok := v.(error); ok {
+		return err.Error()
+	}
+	return v
 }

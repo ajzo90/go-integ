@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ajzo90/go-integ/integrations/shopify"
+	"github.com/ajzo90/go-integ/integrations/storm"
 	"github.com/ajzo90/go-integ/pkg/integ"
-	"github.com/ajzo90/go-integ/pkg/shopify"
 	"log"
 	"net/http"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 var loaders = map[string]integ.Loader{
 	"shopify": shopify.Loader,
+	"storm":   storm.Loader,
 }
 var protos = integ.Protos{
 	"":     integ.AirbyteProto,
