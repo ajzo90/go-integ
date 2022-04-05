@@ -1,4 +1,4 @@
-package integ
+package go_integ
 
 import (
 	"context"

@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajzo90/go-integ/pkg/integ"
+	"github.com/ajzo90/go-integ"
+
 	"github.com/ajzo90/go-requests"
 )
 
-var Loader = integ.New(config{}).
+var Loader = go_integ.New(config{}).
 	Add(orders, Runner("Orders/Orders")).
 	Add(customers, Runner("Customers/Customers")).
 	Add(items, Runner("Products/ProductSkus"))
@@ -24,7 +25,7 @@ type config struct {
 var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
 }))
 
-func Runner(path string) integ.Runner {
+func Runner(path string) go_integ.Runner {
 	return &runner{path: path}
 }
 
@@ -32,7 +33,7 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx integ.StreamContext) error {
+func (s *runner) Run(ctx go_integ.StreamContext) error {
 	var state struct {
 		To time.Time
 	}

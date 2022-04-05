@@ -1,4 +1,4 @@
-package integ
+package go_integ
 
 import "github.com/ajzo90/go-jsonschema-generator"
 
