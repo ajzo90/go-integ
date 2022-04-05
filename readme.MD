@@ -41,12 +41,12 @@ func (config *config) request() *requests.Request {
 
 type Runner string
 
-func (r Runner) Run(ctx context.Context, extractor integ.Extractor) error {
+func (r Runner) Run(ctx integ.RunContext) error {
 	var state struct {
 		To time.Time
 	}
 	var config config
-	if err := extractor.Load(&config, &state); err != nil {
+	if err := ctx.Load(&config, &state); err != nil {
 		return err
 	}
 
@@ -56,15 +56,15 @@ func (r Runner) Run(ctx context.Context, extractor integ.Extractor) error {
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
-		Query("fields", strings.Join(extractor.Schema().FieldKeys(), ",")).
+		Query("fields", strings.Join(ctx.Schema().FieldKeys(), ",")).
 		Query("status", "any")
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := extractor.Batch(ctx, req, resp, r); err != nil {
+		if err := ctx.Batch(ctx, req, resp, r); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
-			return extractor.State(state)
+			return ctx.State(state)
 		} else {
 			req = config.request().Url(next)
 		}
@@ -101,8 +101,8 @@ To implement a source connector you have to fulfill the `Runner` interface
 
 ```go
 type Runner interface {
-// Run runs the sync job.
-Run(ctx context.Context, loader Extractor) error
+	// Run runs the sync job.
+	Run(ctx RunContext) error
 }
 ```
 
@@ -110,21 +110,20 @@ where the `Extractor` argument is defined by the following interface
 
 ```go
 
-// Extractor is what the concrete integration can access
-type Extractor interface {
-// Load a stream with shared config and state
-Load(config, state interface{}) error
+type RunContext interface {
+	// Load a stream with shared config and state
+	Load(config, state interface{}) error
 
-Schema() Schema
+	Schema() Schema
 
-// Batch emit records from a prepared http request
-// (probably) called multiple times
-// resp: (pre-allocated and reusable)
-// keys: (path to the data array)
-Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
+	// Batch executes the provided request, locate the data array and emit the records
+	// (likely) called multiple times in the same run
+	// resp: (pre-allocated and reusable)
+	// path: (path to the data array)
+	Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
 
-// State emit the state
-State(v interface{}) error
+	// State emit the state
+	State(v interface{}) error
 }
 ```
 

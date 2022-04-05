@@ -21,21 +21,20 @@ import (
 
 type Runner interface {
 	// Run runs the sync job.
-	Run(ctx context.Context, loader Extractor) error
+	Run(ctx RunContext) error
 }
 
-// Extractor is what the concrete integration can access
-type Extractor interface {
+type RunContext interface {
 	// Load a stream with shared config and state
 	Load(config, state interface{}) error
 
 	Schema() Schema
 
-	// Batch emit records from a prepared http request
-	// (probably) called multiple times
+	// Batch executes the provided request, locate the data array and emit the records
+	// (likely) called multiple times in the same run
 	// resp: (pre-allocated and reusable)
-	// keys: (path to the data array)
-	Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error
+	// path: (path to the data array)
+	Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
 
 	// State emit the state
 	State(v interface{}) error
@@ -43,7 +42,7 @@ type Extractor interface {
 
 type Proto interface {
 	// Open a new stream loader. Should emit or record the schema information
-	Open(typ Schema) ExtendedStreamLoader
+	Open(typ Schema) StreamProto
 
 	// Spec defines the available streams
 	Spec(ConnectorSpecification) error
@@ -51,24 +50,26 @@ type Proto interface {
 	// Close closes the current session. Flushes pending data
 	Close() error
 
-	// ActiveStreams defines the active streams. 0 streams disable the filtering.
-	ActiveStreams() Streams
+	// SelectedStreams defines the active streams. 0 streams disable the filtering.
+	SelectedStreams() Streams
+
+	Status(v error) error // can we move this to Proto
 }
 
-type ExtendedStreamLoader interface {
-	Extractor
+type StreamProto interface {
+	Load(config, state interface{}) error
 
-	// Log something
+	Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, path ...string) error
+
+	State(v interface{}) error
+
 	Log(v interface{}) error
-
-	// Status report whether the credentials/config are correct, internally it is making one http request to check
-	Status(v error) error
 }
 
-type RunnerFunc func(ctx context.Context, pw Extractor) error
+type RunnerFunc func(ctx RunContext) error
 
-func (r RunnerFunc) Run(ctx context.Context, pw Extractor) error {
-	return r(ctx, pw)
+func (r RunnerFunc) Run(ctx RunContext) error {
+	return r(ctx)
 }
 
 type Streams []Schema
@@ -195,15 +196,6 @@ type runner struct {
 	protos  Protos
 }
 
-func (r *runner) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	p := strings.Split(request.URL.Path, "/")
-	last := p[len(p)-1]
-
-	if err := r.Handle(request.Context(), Command(last), writer, request.Body, r.protos); err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 type Command string
 
 const (
@@ -268,10 +260,19 @@ func New(config interface{}) *runner {
 	return &runner{config: config}
 }
 
+func Server(loader Loader, protos Protos) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		p := strings.Split(request.URL.Path, "/")
+		last := p[len(p)-1]
+
+		if err := loader.Handle(request.Context(), Command(last), writer, request.Body, protos); err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+		}
+	})
+}
+
 type Loader interface {
-	http.Handler
 	Validate() error
-	Protos(Protos)
 	Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error
 }
 
@@ -287,11 +288,11 @@ func (p panicErr) Error() string {
 }
 
 type validatorLoader struct {
-	ExtendedStreamLoader
+	runContext
 }
 
-func (m *validatorLoader) Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
-	if err := req.Extended().ExecJSONPreAlloc(resp, ctx); err != nil {
+func (m *validatorLoader) Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
+	if err := req.Extended().ExecJSONPreAlloc(resp, m.ctx); err != nil {
 		return err
 	} else {
 		return validatorOK
@@ -309,13 +310,31 @@ func (r *runner) Validate() error {
 	return nil
 }
 
+type runContext struct {
+	ctx    context.Context
+	schema Schema
+	StreamProto
+}
+
+func (r *runContext) Schema() Schema {
+	return r.schema
+}
+
+func (r *runContext) Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
+	return r.StreamProto.Batch(r.ctx, req, resp, path...)
+}
+
+func newRunCtx(ctx context.Context, schema Schema, proto Proto) *runContext {
+	return &runContext{ctx: ctx, schema: schema, StreamProto: proto.Open(schema)}
+}
+
 func (r *runner) Check(ctx context.Context, proto Proto) error {
 	for _, runner := range r.runners {
-		pw := proto.Open(runner.schema)
-		if err := runner.fn.Run(ctx, &validatorLoader{ExtendedStreamLoader: pw}); err == validatorOK {
-			return pw.Status(nil)
+		runCtx := newRunCtx(ctx, runner.schema, proto)
+		if err := runner.fn.Run(&validatorLoader{runContext: *runCtx}); err == validatorOK {
+			return proto.Status(nil)
 		} else if err != nil {
-			return pw.Status(fmt.Errorf("validation failed: %s", err.Error()))
+			return proto.Status(fmt.Errorf("validation failed: %s", err.Error()))
 		}
 	}
 	return fmt.Errorf("validation failed: unexpected error")
@@ -344,7 +363,7 @@ func (r *runner) Read(ctx context.Context, proto Proto) error {
 }
 
 func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
-	streams := proto.ActiveStreams()
+	streams := proto.SelectedStreams()
 	wg, ctx := errgroup.WithContext(ctx)
 	for _, runner := range r.runners {
 		runner := runner // copy
@@ -374,7 +393,7 @@ func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err err
 	}()
 
 	if sync {
-		return runner.fn.Run(ctx, pw)
+		return runner.fn.Run(&runContext{StreamProto: pw, ctx: ctx})
 	}
 	return nil
 }

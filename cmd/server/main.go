@@ -27,7 +27,6 @@ func main() {
 		if err := loader.Validate(); err != nil {
 			panic(fmt.Errorf("validation error in %s: %v", name, err))
 		}
-		loader.Protos(protos)
 	}
 
 	h := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -44,7 +43,7 @@ func main() {
 
 		for key, loader := range loaders {
 			if strings.HasPrefix(request.URL.Path, "/"+key+"/") {
-				loader.ServeHTTP(writer, request)
+				integ.Server(loader, protos).ServeHTTP(writer, request)
 				return
 			}
 		}

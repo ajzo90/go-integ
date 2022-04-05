@@ -1,7 +1,6 @@
 package storm
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -33,20 +32,20 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
+func (s *runner) Run(ctx integ.RunContext) error {
 	var state struct {
 		To time.Time
 	}
 	var config config
 
-	if err := extractor.Load(&config, &state); err != nil {
+	if err := ctx.Load(&config, &state); err != nil {
 		return err
 	}
 	newTo := time.Now()
 
 	reqB := requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Doer(doer).Clone
 
-	schema := extractor.Schema()
+	schema := ctx.Schema()
 
 	req := reqB().Path(s.path).Query("$select", strings.Join(schema.FieldKeys(), ","))
 
@@ -59,11 +58,11 @@ func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
 	}
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := extractor.Batch(ctx, req, resp, "value"); err != nil {
+		if err := ctx.Batch(req, resp, "value"); err != nil {
 			return err
 		} else if next := resp.String("@odata.nextLink"); next == "" {
 			state.To = newTo
-			return extractor.State(state)
+			return ctx.State(state)
 		} else {
 			req = reqB().Url(next)
 		}

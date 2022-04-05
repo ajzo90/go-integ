@@ -13,10 +13,6 @@ func (m *jsonStream) Load(config, state interface{}) error {
 	return m.i.Load(m.schema.Name, config, state)
 }
 
-func (m *jsonStream) Schema() Schema {
-	return m.schema
-}
-
 func (m *jsonStream) State(v interface{}) error {
 	return m.i.encode(struct {
 		Type   msgType     `json:"type"`

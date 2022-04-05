@@ -1,7 +1,6 @@
 package shopify
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -37,12 +36,12 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
+func (s *runner) Run(ctx integ.RunContext) error {
 	var state struct {
 		To time.Time
 	}
 	var config config
-	if err := extractor.Load(&config, &state); err != nil {
+	if err := ctx.Load(&config, &state); err != nil {
 		return err
 	}
 
@@ -52,15 +51,15 @@ func (s *runner) Run(ctx context.Context, extractor integ.Extractor) error {
 		Path(s.path+".json").
 		Query("updated_at_min", from.Format(time.RFC3339)).
 		Query("updated_at_max", to.Format(time.RFC3339)).
-		Query("fields", strings.Join(extractor.Schema().FieldKeys(), ",")).
+		Query("fields", strings.Join(ctx.Schema().FieldKeys(), ",")).
 		Query("status", "any")
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := extractor.Batch(ctx, req, resp, s.path); err != nil {
+		if err := ctx.Batch(req, resp, s.path); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
-			return extractor.State(state)
+			return ctx.State(state)
 		} else {
 			req = config.request().Url(next)
 		}

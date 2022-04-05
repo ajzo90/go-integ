@@ -25,7 +25,7 @@ type airbyteStream struct {
 	recBuf     []byte
 }
 
-func (m *airbyteProto) Open(schema Schema) ExtendedStreamLoader {
+func (m *airbyteProto) Open(schema Schema) StreamProto {
 	regStateFn := func(v interface{}) {
 		m.regState[schema.Name] = v
 	}
@@ -96,7 +96,7 @@ const (
 	FAILED    checkStatus = "FAILED"
 )
 
-func (m *airbyteStream) Status(err error) error {
+func (m *airbyteProto) Status(err error) error {
 	type Status struct {
 		Status checkStatus `json:"status"`
 		Reason string      `json:"reason,omitempty"`
@@ -107,7 +107,7 @@ func (m *airbyteStream) Status(err error) error {
 		s.Status = FAILED
 		s.Reason = err.Error()
 	}
-	return m.i.encode(struct {
+	return m.encode(struct {
 		Type             msgType `json:"type"`
 		ConnectionStatus Status  `json:"connectionStatus"`
 	}{
