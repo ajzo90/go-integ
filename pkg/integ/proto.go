@@ -21,31 +21,28 @@ import (
 
 type Runner interface {
 	// Run runs the sync job.
-	Run(ctx RunContext) error
+	Run(ctx StreamContext) error
 }
 
-type RunContext interface {
+type StreamContext interface {
 	// Load a stream with shared config and state
 	Load(config, state interface{}) error
 
 	Schema() Schema
 
-	// Batch executes the provided request, locate the data array and emit the records
+	// EmitBatch executes the provided request, locate the data array and emit the records
 	// (likely) called multiple times in the same run
 	// resp: (pre-allocated and reusable)
 	// path: (path to the data array)
-	Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
+	EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
 
-	// State emit the state
-	State(v interface{}) error
+	// EmitState emit the state
+	EmitState(v interface{}) error
 }
 
 type Proto interface {
 	// Open a new stream loader. Should emit or record the schema information
 	Open(typ Schema) StreamProto
-
-	// Spec defines the available streams
-	Spec(ConnectorSpecification) error
 
 	// Close closes the current session. Flushes pending data
 	Close() error
@@ -53,22 +50,25 @@ type Proto interface {
 	// SelectedStreams defines the active streams. 0 streams disable the filtering.
 	SelectedStreams() Streams
 
-	Status(v error) error // can we move this to Proto
+	// EmitSpec defines the available streams
+	EmitSpec(ConnectorSpecification) error
+
+	EmitStatus(v error) error // can we move this to Proto
 }
 
 type StreamProto interface {
 	Load(config, state interface{}) error
 
-	Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, path ...string) error
+	EmitBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, path ...string) error
 
-	State(v interface{}) error
+	EmitState(v interface{}) error
 
-	Log(v interface{}) error
+	EmitLog(v interface{}) error
 }
 
-type RunnerFunc func(ctx RunContext) error
+type RunnerFunc func(ctx StreamContext) error
 
-func (r RunnerFunc) Run(ctx RunContext) error {
+func (r RunnerFunc) Run(ctx StreamContext) error {
 	return r(ctx)
 }
 
@@ -291,7 +291,7 @@ type validatorLoader struct {
 	runContext
 }
 
-func (m *validatorLoader) Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
+func (m *validatorLoader) EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
 	if err := req.Extended().ExecJSONPreAlloc(resp, m.ctx); err != nil {
 		return err
 	} else {
@@ -320,8 +320,8 @@ func (r *runContext) Schema() Schema {
 	return r.schema
 }
 
-func (r *runContext) Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
-	return r.StreamProto.Batch(r.ctx, req, resp, path...)
+func (r *runContext) EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
+	return r.StreamProto.EmitBatch(r.ctx, req, resp, path...)
 }
 
 func newRunCtx(ctx context.Context, schema Schema, proto Proto) *runContext {
@@ -332,9 +332,9 @@ func (r *runner) Check(ctx context.Context, proto Proto) error {
 	for _, runner := range r.runners {
 		runCtx := newRunCtx(ctx, runner.schema, proto)
 		if err := runner.fn.Run(&validatorLoader{runContext: *runCtx}); err == validatorOK {
-			return proto.Status(nil)
+			return proto.EmitStatus(nil)
 		} else if err != nil {
-			return proto.Status(fmt.Errorf("validation failed: %s", err.Error()))
+			return proto.EmitStatus(fmt.Errorf("validation failed: %s", err.Error()))
 		}
 	}
 	return fmt.Errorf("validation failed: unexpected error")
@@ -351,7 +351,7 @@ type ConnectorSpecification struct {
 }
 
 func (r *runner) Spec(ctx context.Context, proto Proto) error {
-	return proto.Spec(ConnectorSpecification{
+	return proto.EmitSpec(ConnectorSpecification{
 		DocumentationURL:        "127.0.0.1/docs",
 		SupportsIncremental:     true, // why is this important to share?
 		ConnectionSpecification: jsonschema.New(r.config),
@@ -388,7 +388,7 @@ func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err err
 			err = panicErr(s)
 		}
 		if err != nil {
-			err = pw.Log(err)
+			err = pw.EmitLog(err)
 		}
 	}()
 

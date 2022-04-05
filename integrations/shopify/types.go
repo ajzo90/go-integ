@@ -7,7 +7,7 @@ var Incremental, Field = integ.Incremental, integ.Field
 var id = Field("id")
 
 var users = Incremental("users", struct {
-	ID               int    `json:"id"`
+	Id               int    `json:"id"`
 	Email            string `json:"email"`
 	CreatedAt        string `json:"created_at"`
 	UpdatedAt        string `json:"updated_at"`

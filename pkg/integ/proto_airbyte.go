@@ -56,7 +56,7 @@ func (m *airbyteProto) Close() error {
 	return nil
 }
 
-func (m *airbyteProto) Spec(v ConnectorSpecification) error {
+func (m *airbyteProto) EmitSpec(v ConnectorSpecification) error {
 	return m.encode(struct {
 		Type msgType     `json:"type"`
 		Spec interface{} `json:"spec"`
@@ -66,7 +66,7 @@ func (m *airbyteProto) Spec(v ConnectorSpecification) error {
 	})
 }
 
-func (m *airbyteStream) Batch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
+func (m *airbyteStream) EmitBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
 	err := req.Extended().ExecJSONPreAlloc(resp, ctx)
 	if err != nil {
 		return err
@@ -79,12 +79,7 @@ func (m *airbyteStream) Batch(ctx context.Context, req *requests.Request, resp *
 	return m.i.Write(m.recBuf)
 }
 
-func (m *airbyteStream) WriteSchema(v Schema) error {
-	m.streams = append(m.streams, v)
-	return nil
-}
-
-func (m *airbyteStream) State(v interface{}) error {
+func (m *airbyteStream) EmitState(v interface{}) error {
 	m.regStateFn(v)
 	return nil
 }
@@ -96,7 +91,7 @@ const (
 	FAILED    checkStatus = "FAILED"
 )
 
-func (m *airbyteProto) Status(err error) error {
+func (m *airbyteProto) EmitStatus(err error) error {
 	type Status struct {
 		Status checkStatus `json:"status"`
 		Reason string      `json:"reason,omitempty"`

@@ -36,7 +36,7 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx integ.RunContext) error {
+func (s *runner) Run(ctx integ.StreamContext) error {
 	var state struct {
 		To time.Time
 	}
@@ -55,11 +55,11 @@ func (s *runner) Run(ctx integ.RunContext) error {
 		Query("status", "any")
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := ctx.Batch(req, resp, s.path); err != nil {
+		if err := ctx.EmitBatch(req, resp, s.path); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
-			return ctx.State(state)
+			return ctx.EmitState(state)
 		} else {
 			req = config.request().Url(next)
 		}

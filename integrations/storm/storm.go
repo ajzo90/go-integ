@@ -32,7 +32,7 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx integ.RunContext) error {
+func (s *runner) Run(ctx integ.StreamContext) error {
 	var state struct {
 		To time.Time
 	}
@@ -58,11 +58,11 @@ func (s *runner) Run(ctx integ.RunContext) error {
 	}
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := ctx.Batch(req, resp, "value"); err != nil {
+		if err := ctx.EmitBatch(req, resp, "value"); err != nil {
 			return err
 		} else if next := resp.String("@odata.nextLink"); next == "" {
 			state.To = newTo
-			return ctx.State(state)
+			return ctx.EmitState(state)
 		} else {
 			req = reqB().Url(next)
 		}

@@ -21,11 +21,11 @@ Shopify source with incremental sync
 package shopify
 
 import (
-	"context"
-	"github.com/ajzo90/go-integ/pkg/integ"
-	"github.com/ajzo90/go-requests"
 	"strings"
 	"time"
+
+	"github.com/ajzo90/go-integ/pkg/integ"
+	"github.com/ajzo90/go-requests"
 )
 
 type config struct {
@@ -41,7 +41,7 @@ func (config *config) request() *requests.Request {
 
 type Runner string
 
-func (r Runner) Run(ctx integ.RunContext) error {
+func (r Runner) Run(ctx integ.StreamContext) error {
 	var state struct {
 		To time.Time
 	}
@@ -60,11 +60,11 @@ func (r Runner) Run(ctx integ.RunContext) error {
 		Query("status", "any")
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := ctx.Batch(ctx, req, resp, r); err != nil {
+		if err := ctx.EmitBatch(ctx, req, resp, r); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
-			return ctx.State(state)
+			return ctx.EmitState(state)
 		} else {
 			req = config.request().Url(next)
 		}
@@ -80,7 +80,7 @@ var Loader = integ.New(config{}).
 	Add(orders, Runner("orders"))
 
 var users = integ.Incremental("users", struct {
-	ID    int    `json:"id"`
+	Id    int    `json:"id"`
 	Email string `json:"email"`
 	...
 }{}).Primary(integ.Field("id"))
@@ -102,7 +102,7 @@ To implement a source connector you have to fulfill the `Runner` interface
 ```go
 type Runner interface {
 	// Run runs the sync job.
-	Run(ctx RunContext) error
+	Run(ctx StreamContext) error
 }
 ```
 
@@ -110,20 +110,20 @@ where the `Extractor` argument is defined by the following interface
 
 ```go
 
-type RunContext interface {
+type StreamContext interface {
 	// Load a stream with shared config and state
 	Load(config, state interface{}) error
 
 	Schema() Schema
 
-	// Batch executes the provided request, locate the data array and emit the records
+	// EmitBatch executes the provided request, locate the data array and emit the records
 	// (likely) called multiple times in the same run
 	// resp: (pre-allocated and reusable)
 	// path: (path to the data array)
-	Batch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
+	EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
 
 	// State emit the state
-	State(v interface{}) error
+	EmitState(v interface{}) error
 }
 ```
 
