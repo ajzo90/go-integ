@@ -30,7 +30,7 @@ func (m *proto) Open(schema integ.Schema) integ.StreamProto {
 		m.regState[schema.Name] = v
 	}
 	m.schemas = append(m.schemas, schema)
-	return &streamProto{regStateFn: regStateFn, rec: newWrap(integ.RECORD, schema.Name)}
+	return &streamProto{i: m, regStateFn: regStateFn, rec: newWrap(integ.RECORD, schema.Name)}
 }
 
 // Close flushes remaining data (state, streams)
