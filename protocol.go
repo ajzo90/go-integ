@@ -9,7 +9,7 @@ import (
 )
 
 type Protocol struct {
-	cmd      Command
+	Cmd      Command
 	settings Settings
 	config   []byte
 	states   map[string][]byte
@@ -17,11 +17,7 @@ type Protocol struct {
 	wMtx     sync.Mutex
 }
 
-func (i *Protocol) SelectedStreams() Streams {
-	return i.settings.Streams
-}
-
-func (i *Protocol) encode(v interface{}) error {
+func (i *Protocol) Encode(v interface{}) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

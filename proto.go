@@ -42,13 +42,11 @@ type StreamContext interface {
 
 type Proto interface {
 	// Open a new stream loader. Should emit or record the schema information
+	// Proto can return nil in case this stream should not be emitted
 	Open(typ Schema) StreamProto
 
 	// Close closes the current session. Flushes pending data
 	Close() error
-
-	// SelectedStreams defines the active streams. 0 streams disable the filtering.
-	SelectedStreams() Streams
 
 	// EmitSpec defines the available streams
 	EmitSpec(ConnectorSpecification) error
@@ -74,14 +72,6 @@ func (r RunnerFunc) Run(ctx StreamContext) error {
 
 type Streams []Schema
 
-func (streams Streams) Contains(name string) bool {
-	isOk := len(streams) == 0
-	for _, st := range streams {
-		isOk = isOk || st.Name == name
-	}
-	return isOk
-}
-
 type Settings struct {
 	Format  string
 	Streams Streams
@@ -89,7 +79,7 @@ type Settings struct {
 
 func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 	var p fastjson.Parser
-	i := &Protocol{states: map[string][]byte{}, _w: w, cmd: cmd}
+	i := &Protocol{states: map[string][]byte{}, _w: w, Cmd: cmd}
 	var buf []byte
 
 	marshal := func(v *fastjson.Value) []byte {
@@ -111,7 +101,7 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 		if err != nil {
 			return nil, err
 		}
-		switch t := msgType(v.GetStringBytes("type")); t {
+		switch t := MsgType(v.GetStringBytes("type")); t {
 		case "SETTINGS":
 			b := marshal(v.Get("settings"))
 			if err := json.NewDecoder(bytes.NewReader(b)).Decode(&i.settings); err != nil {
@@ -122,6 +112,8 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 		case STATE:
 			stream := string(v.GetStringBytes("stream"))
 			i.states[stream] = marshal(v.Get("state"))
+		case CATALOG:
+
 		default:
 			return nil, fmt.Errorf("invalid type '%s'", t)
 		}
@@ -149,14 +141,6 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 		return nil, fmt.Errorf("not supported")
 	}
 	return fn(i), nil
-}
-
-func newWrap(typ msgType, stream string) *fastjson.Value {
-	var a fastjson.Arena
-	o := a.NewObject()
-	o.Set("type", a.NewString(string(typ)))
-	o.Set("stream", a.NewString(stream))
-	return o
 }
 
 func Keys(schema *jsonschema.Document) []string {
@@ -199,21 +183,21 @@ type runner struct {
 type Command string
 
 const (
-	cmdSpec     Command = "spec"
-	cmdCheck    Command = "check"
-	cmdDiscover Command = "discover"
-	cmdRead     Command = "read"
+	CmdSpec     Command = "spec"
+	CmdCheck    Command = "check"
+	CmdDiscover Command = "discover"
+	CmdRead     Command = "read"
 )
 
-type msgType string
+type MsgType string
 
 const (
-	RECORD            msgType = "RECORD"
-	STATE             msgType = "STATE"
-	LOG               msgType = "LOG"
-	CONNECTION_STATUS msgType = "CONNECTION_STATUS"
-	CATALOG           msgType = "CATALOG"
-	SPEC              msgType = "SPEC"
+	RECORD            MsgType = "RECORD"
+	STATE             MsgType = "STATE"
+	LOG               MsgType = "LOG"
+	CONNECTION_STATUS MsgType = "CONNECTION_STATUS"
+	CATALOG           MsgType = "CATALOG"
+	SPEC              MsgType = "SPEC"
 )
 
 type (
@@ -243,13 +227,13 @@ func (r *runner) Protos(protos Protos) {
 
 func (r *runner) handle(ctx context.Context, proto Proto, cmd Command) error {
 	switch cmd {
-	case cmdSpec:
+	case CmdSpec:
 		return r.Spec(ctx, proto)
-	case cmdCheck:
+	case CmdCheck:
 		return r.Check(ctx, proto)
-	case cmdDiscover:
+	case CmdDiscover:
 		return r.Run(ctx, proto, false)
-	case cmdRead:
+	case CmdRead:
 		return r.Run(ctx, proto, true)
 	default:
 		return fmt.Errorf("invalid path")
@@ -363,24 +347,21 @@ func (r *runner) Read(ctx context.Context, proto Proto) error {
 }
 
 func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
-	streams := proto.SelectedStreams()
 	wg, ctx := errgroup.WithContext(ctx)
 	for _, runner := range r.runners {
 		runner := runner // copy
-
-		if !streams.Contains(runner.schema.Name) {
+		sp := proto.Open(runner.schema)
+		if sp == nil {
 			continue
 		}
-
 		wg.Go(func() (err error) {
-			return run(ctx, proto, runner, sync)
+			return run(ctx, sp, runner, sync)
 		})
 	}
 	return wg.Wait()
 }
 
-func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err error) {
-	pw := proto.Open(runner.schema)
+func run(ctx context.Context, pw StreamProto, runner runnerTyp, sync bool) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			s := debug.Stack()

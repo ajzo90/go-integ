@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-integ/integrations/shopify"
 	"github.com/ajzo90/go-integ/integrations/storm"
+	"github.com/ajzo90/go-integ/pkg/airbyte"
 )
 
 var loaders = map[string]integ.Loader{
@@ -18,17 +18,11 @@ var loaders = map[string]integ.Loader{
 }
 
 var protos = integ.Protos{
-	"":     integ.AirbyteProto,
-	"mock": integ.AirbyteProto,
+	"":     airbyte.Proto,
+	"mock": airbyte.Proto,
 }
 
 func main() {
-	for name, loader := range loaders {
-		if err := loader.Validate(); err != nil {
-			panic(fmt.Errorf("validation error in %s: %v", name, err))
-		}
-	}
-
 	h := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if strings.HasPrefix(request.URL.Path, "/discover") {
 			var o []string
@@ -41,8 +35,8 @@ func main() {
 			return
 		}
 
-		for key, loader := range loaders {
-			if strings.HasPrefix(request.URL.Path, "/"+key+"/") {
+		for name, loader := range loaders {
+			if strings.HasPrefix(request.URL.Path, "/"+name+"/") {
 				integ.Server(loader, protos).ServeHTTP(writer, request)
 				return
 			}
