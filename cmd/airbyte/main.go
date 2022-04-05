@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ajzo90/go-integ"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/ajzo90/go-integ"
 
 	"github.com/ajzo90/go-integ/integrations/shopify"
 )

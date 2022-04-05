@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ajzo90/go-integ"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/ajzo90/go-integ"
 
 	"github.com/ajzo90/go-integ/integrations/shopify"
 	"github.com/ajzo90/go-integ/integrations/storm"

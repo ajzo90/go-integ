@@ -2,10 +2,11 @@ package storm
 
 import (
 	"fmt"
-	"github.com/ajzo90/go-integ"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/ajzo90/go-integ"
 
 	"github.com/ajzo90/go-requests"
 )
