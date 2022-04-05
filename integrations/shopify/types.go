@@ -4,7 +4,7 @@ import (
 	"github.com/ajzo90/go-integ"
 )
 
-var Incremental, Field = go_integ.Incremental, go_integ.Field
+var Incremental, Field = integ.Incremental, integ.Field
 
 var id = Field("id")
 

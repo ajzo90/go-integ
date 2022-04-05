@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	integ "github.com/ajzo90/go-integ"
+	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-requests"
 )
 

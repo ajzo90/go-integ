@@ -1,4 +1,4 @@
-package go_integ
+package integ
 
 import (
 	"context"
@@ -19,7 +19,6 @@ type airbyteProto struct {
 
 type airbyteStream struct {
 	jsonStream
-	streams    []interface{}
 	rec        *fastjson.Value
 	regStateFn func(v interface{})
 	recBuf     []byte

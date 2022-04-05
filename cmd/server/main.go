@@ -8,19 +8,18 @@ import (
 	"strings"
 
 	"github.com/ajzo90/go-integ"
-
 	"github.com/ajzo90/go-integ/integrations/shopify"
 	"github.com/ajzo90/go-integ/integrations/storm"
 )
 
-var loaders = map[string]go_integ.Loader{
+var loaders = map[string]integ.Loader{
 	"shopify": shopify.Loader,
 	"storm":   storm.Loader,
 }
 
-var protos = go_integ.Protos{
-	"":     go_integ.AirbyteProto,
-	"mock": go_integ.AirbyteProto,
+var protos = integ.Protos{
+	"":     integ.AirbyteProto,
+	"mock": integ.AirbyteProto,
 }
 
 func main() {
@@ -44,7 +43,7 @@ func main() {
 
 		for key, loader := range loaders {
 			if strings.HasPrefix(request.URL.Path, "/"+key+"/") {
-				go_integ.Server(loader, protos).ServeHTTP(writer, request)
+				integ.Server(loader, protos).ServeHTTP(writer, request)
 				return
 			}
 		}

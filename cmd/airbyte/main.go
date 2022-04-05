@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/ajzo90/go-integ"
-
 	"github.com/ajzo90/go-integ/integrations/shopify"
 )
 
@@ -23,7 +22,7 @@ func main() {
 	}
 }
 
-func Main(args []string, loader go_integ.Loader) error {
+func Main(args []string, loader integ.Loader) error {
 	if err := loader.Validate(); err != nil {
 		return fmt.Errorf("validation error in %s: %v", args[0], err)
 	} else if len(args) < 2 {
@@ -69,7 +68,7 @@ func Main(args []string, loader go_integ.Loader) error {
 		}
 	}
 
-	return loader.Handle(context.Background(), go_integ.Command(cmd), os.Stdout, bytes.NewReader(b.Bytes()), go_integ.Protos{
-		"airbyte": go_integ.AirbyteProto,
+	return loader.Handle(context.Background(), integ.Command(cmd), os.Stdout, bytes.NewReader(b.Bytes()), integ.Protos{
+		"airbyte": integ.AirbyteProto,
 	})
 }

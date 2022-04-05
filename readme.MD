@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ajzo90/go-integ/pkg/integ"
+	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-requests"
 )
 

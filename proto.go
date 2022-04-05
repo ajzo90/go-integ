@@ -1,4 +1,4 @@
-package go_integ
+package integ
 
 import (
 	"bufio"
