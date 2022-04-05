@@ -9,7 +9,7 @@ import (
 	"github.com/ajzo90/go-requests"
 )
 
-var Loader = integ.New(config{}).
+var Source = integ.NewSource(config{}).
 	Add(users, Runner("customers")).
 	Add(orders, Runner("orders"))
 

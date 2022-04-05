@@ -10,7 +10,7 @@ import (
 	"github.com/ajzo90/go-requests"
 )
 
-var Loader = integ.New(config{}).
+var Loader = integ.NewSource(config{}).
 	Add(orders, Runner("Orders/Orders")).
 	Add(customers, Runner("Customers/Customers")).
 	Add(items, Runner("Products/ProductSkus"))

@@ -9,12 +9,20 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/ajzo90/go-integ"
 )
 
-func Cmd(args []string, loader integ.Loader, w io.Writer) error {
+func Source(loader integ.Loader) {
+	if err := cmd(os.Args, loader, os.Stdout); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func cmd(args []string, loader integ.Loader, w io.Writer) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: %s cmd [--config config] [--state state] [--catalog catalog]", args[0])
 	}

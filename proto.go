@@ -240,7 +240,7 @@ func (r *runner) handle(ctx context.Context, proto Proto, cmd Command) error {
 	}
 }
 
-func New(config interface{}) *runner {
+func NewSource(config interface{}) *runner {
 	return &runner{config: config}
 }
 
@@ -256,8 +256,7 @@ func Server(loader Loader, protos Protos) http.Handler {
 }
 
 type Loader interface {
-	Validate() error
-	Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error
+	Handle(ctx context.Context, cmd Command, w io.Writer, r io.Reader, protos Protos) error
 }
 
 func (r *runner) Add(schema SchemaBuilder, runner Runner) *runner {

@@ -33,7 +33,8 @@ func (i *Protocol) Write(b []byte) error {
 }
 
 func (i *Protocol) Load(stream string, config, state interface{}) error {
-	if len(i.config) > 0 {
+	if config == nil {
+	} else if len(i.config) > 0 {
 		if err := json.NewDecoder(bytes.NewReader(i.config)).Decode(config); err != nil {
 			return err
 		}
@@ -41,7 +42,9 @@ func (i *Protocol) Load(stream string, config, state interface{}) error {
 		return fmt.Errorf("expected config")
 	}
 
-	if v := i.states[stream]; len(v) == 0 {
+	if state == nil {
+		return nil
+	} else if v := i.states[stream]; len(v) == 0 {
 		return nil
 	} else if err := json.NewDecoder(bytes.NewReader(v)).Decode(state); err != nil {
 		return err

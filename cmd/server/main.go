@@ -13,7 +13,7 @@ import (
 )
 
 var loaders = map[string]integ.Loader{
-	"shopify": shopify.Loader,
+	"shopify": shopify.Source,
 	"storm":   storm.Loader,
 }
 
