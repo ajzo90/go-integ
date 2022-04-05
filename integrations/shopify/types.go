@@ -1,8 +1,10 @@
 package shopify
 
-import "github.com/ajzo90/go-integ/pkg/integ"
+import (
+	"github.com/ajzo90/go-integ"
+)
 
-var Incremental, Field = integ.Incremental, integ.Field
+var Incremental, Field = go_integ.Incremental, go_integ.Field
 
 var id = Field("id")
 
