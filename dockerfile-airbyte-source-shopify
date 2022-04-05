@@ -1,0 +1,10 @@
+FROM golang:1.18-buster as build
+
+WORKDIR /base
+ADD . /base/
+RUN go build -o /base/app ./cmd/airbyte-source-shopify
+
+FROM gcr.io/distroless/base-debian10:debug
+COPY --from=build /base/app /base/app
+
+ENTRYPOINT ["/base/app"]

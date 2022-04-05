@@ -153,3 +153,10 @@ Do(r *http.Request) (*http.Response, error)
 
 ...
 
+## Airbyte source example (shopify)
+```shell
+docker build -t airbyte-source-shopify:dev -f dockerfile-airbyte-source-shopify .
+docker run --rm airbyte-source-shopify:dev spec
+...
+```
+
