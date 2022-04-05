@@ -60,7 +60,7 @@ func (r Runner) Run(ctx integ.StreamContext) error {
 		Query("status", "any")
 
 	for resp := new(requests.JSONResponse); ; {
-		if err := ctx.EmitBatch(ctx, req, resp, r); err != nil {
+		if err := ctx.EmitBatch(req, resp, r); err != nil {
 			return err
 		} else if next := ParseNext(resp.Header("link")); next == "" {
 			state.To = to
@@ -101,8 +101,8 @@ To implement a source connector you have to fulfill the `Runner` interface
 
 ```go
 type Runner interface {
-	// Run runs the sync job.
-	Run(ctx StreamContext) error
+    // Run runs the sync job.
+    Run(ctx StreamContext) error
 }
 ```
 
@@ -122,7 +122,7 @@ type StreamContext interface {
 	// path: (path to the data array)
 	EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
 
-	// State emit the state
+	// EmitState emit the state
 	EmitState(v interface{}) error
 }
 ```
