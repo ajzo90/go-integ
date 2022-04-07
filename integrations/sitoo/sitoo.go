@@ -9,9 +9,10 @@ import (
 )
 
 var Source = integ.NewSource(config{}).
-	Add(users, Runner).
-	Add(orders, Runner).
-	Documentation("https://developer.sitoo.com")
+	AddStream(users, Runner).
+	AddStream(orders, Runner).
+	Documentation("https://developer.sitoo.com").
+	Notes(`prototype/draft`)
 
 var users = integ.NonIncremental("users", struct {
 	UserId  string `json:"userid"`

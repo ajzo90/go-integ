@@ -10,9 +10,9 @@ import (
 )
 
 var Loader = integ.NewSource(config{}).
-	Add(orders, Runner("Orders/Orders")).
-	Add(customers, Runner("Customers/Customers")).
-	Add(items, Runner("Products/ProductSkus"))
+	AddStream(orders, Runner("Orders/Orders")).
+	AddStream(customers, Runner("Customers/Customers")).
+	AddStream(items, Runner("Products/ProductSkus"))
 
 type config struct {
 	User     string `json:"user"`

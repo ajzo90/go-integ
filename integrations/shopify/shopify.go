@@ -9,8 +9,8 @@ import (
 )
 
 var Source = integ.NewSource(config{}).
-	Add(users, Runner("customers")).
-	Add(orders, Runner("orders"))
+	AddStream(users, Runner("customers")).
+	AddStream(orders, Runner("orders"))
 
 type config struct {
 	ApiKey integ.MaskedString `json:"api_key"`
