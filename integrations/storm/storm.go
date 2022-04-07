@@ -10,9 +10,10 @@ import (
 )
 
 var Loader = integ.NewSource(config{}).
-	AddStream(orders, Runner("Orders/Orders")).
-	AddStream(customers, Runner("Customers/Customers")).
-	AddStream(items, Runner("Products/ProductSkus"))
+	HttpStream(orders, Runner("Orders/Orders")).
+	HttpStream(customers, Runner("Customers/Customers")).
+	HttpStream(items, Runner("Products/ProductSkus")).
+	Documentation("https://storm.io/docs/storm-api/")
 
 type config struct {
 	User     string `json:"user"`
@@ -20,7 +21,7 @@ type config struct {
 	Url      string `json:"url"`
 }
 
-func Runner(path string) integ.Runner {
+func Runner(path string) integ.HttpRunner {
 	return &runner{path: path}
 }
 
@@ -28,7 +29,7 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx integ.StreamContext) error {
+func (s *runner) Run(ctx integ.HttpContext) error {
 	var state struct {
 		To time.Time
 	}

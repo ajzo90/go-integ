@@ -19,25 +19,49 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Runner interface {
+type HttpRunner interface {
 	// Run runs the sync job.
-	Run(ctx StreamContext) error
+	Run(ctx HttpContext) error
 }
 
-type StreamContext interface {
+type DbRunner interface {
+	Run(ctx DbContext) error
+}
+
+type FsRunner interface {
+	Run(ctx FsContext) error
+}
+
+type GeneralRunner interface {
+	Run(ctx GeneralContext) error
+}
+
+type GeneralContext interface {
 	// Load a stream with shared config and state
 	Load(config, state interface{}) error
 
 	Schema() Schema
+
+	// EmitState emit the state
+	EmitState(v interface{}) error
+}
+
+type HttpContext interface {
+	GeneralContext
 
 	// EmitBatch executes the provided request, locate the data array and emit the records
 	// (likely) called multiple times in the same run
 	// resp: (pre-allocated and reusable)
 	// path: (path to the data array)
 	EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
+}
 
-	// EmitState emit the state
-	EmitState(v interface{}) error
+type DbContext interface {
+	GeneralContext
+}
+
+type FsContext interface {
+	GeneralContext
 }
 
 type Proto interface {
@@ -64,9 +88,9 @@ type StreamProto interface {
 	EmitLog(v interface{}) error
 }
 
-type RunnerFunc func(ctx StreamContext) error
+type RunnerFunc func(ctx HttpContext) error
 
-func (r RunnerFunc) Run(ctx StreamContext) error {
+func (r RunnerFunc) Run(ctx HttpContext) error {
 	return r(ctx)
 }
 
@@ -169,15 +193,17 @@ func (s MaskedString) MarshalJSON() ([]byte, error) {
 type (
 	runners   []runnerTyp
 	runnerTyp struct {
-		fn     Runner
-		schema Schema
+		httpRunner HttpRunner
+		fsRunner   FsRunner
+		schema     Schema
 	}
 )
 
-type runner struct {
-	config  interface{}
-	runners runners
-	protos  Protos
+type sourceDef struct {
+	config     interface{}
+	runners    runners
+	protos     Protos
+	httpRunner HttpRunner
 }
 
 type Command string
@@ -205,7 +231,7 @@ type (
 	Protos  map[string]ProtoFn
 )
 
-func (r *runner) Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error {
+func (r *sourceDef) Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error {
 	proto, err := Open(rd, writer, cmd, protos)
 	if err != nil {
 		return err
@@ -221,11 +247,11 @@ func (r *runner) Handle(ctx context.Context, cmd Command, writer io.Writer, rd i
 	}
 }
 
-func (r *runner) Protos(protos Protos) {
+func (r *sourceDef) Protos(protos Protos) {
 	r.protos = protos
 }
 
-func (r *runner) handle(ctx context.Context, proto Proto, cmd Command) error {
+func (r *sourceDef) handle(ctx context.Context, proto Proto, cmd Command) error {
 	switch cmd {
 	case CmdSpec:
 		return r.Spec(ctx, proto)
@@ -240,15 +266,15 @@ func (r *runner) handle(ctx context.Context, proto Proto, cmd Command) error {
 	}
 }
 
-func NewSource(config interface{}) *runner {
-	return &runner{config: config}
+func NewSource(config interface{}) *sourceDef {
+	return &sourceDef{config: config}
 }
 
-func (r *runner) Documentation(links ...string) *runner {
+func (r *sourceDef) Documentation(links ...string) *sourceDef {
 	return r
 }
 
-func (r *runner) Notes(links ...string) *runner {
+func (r *sourceDef) Notes(links ...string) *sourceDef {
 	return r
 }
 
@@ -267,8 +293,29 @@ type Loader interface {
 	Handle(ctx context.Context, cmd Command, w io.Writer, r io.Reader, protos Protos) error
 }
 
-func (r *runner) AddStream(schema SchemaBuilder, runner Runner) *runner {
-	r.runners = append(r.runners, runnerTyp{schema: schema.Schema, fn: runner})
+func (r *sourceDef) HttpRunner(runner HttpRunner) *sourceDef {
+	r.httpRunner = runner
+	return r
+}
+
+func (r *sourceDef) GeneralStream(schema SchemaBuilder, runner ...GeneralRunner) *sourceDef {
+	return r
+}
+
+func (r *sourceDef) FsStream(schema SchemaBuilder, runner ...FsRunner) *sourceDef {
+	return r
+}
+
+func (r *sourceDef) DbStream(schema SchemaBuilder, runner ...DbRunner) *sourceDef {
+	return r
+}
+
+func (r *sourceDef) HttpStream(schema SchemaBuilder, runner ...HttpRunner) *sourceDef {
+	var fn HttpRunner
+	if len(runner) == 1 {
+		fn = runner[0]
+	}
+	r.runners = append(r.runners, runnerTyp{schema: schema.Schema, httpRunner: fn})
 	return r
 }
 
@@ -292,7 +339,7 @@ func (m *validatorLoader) EmitBatch(req *requests.Request, resp *requests.JSONRe
 
 var validatorOK = fmt.Errorf("validatorOK")
 
-func (r *runner) Validate() error {
+func (r *sourceDef) Validate() error {
 	for _, runner := range r.runners {
 		if err := runner.schema.Validate(); err != nil {
 			return err
@@ -316,13 +363,14 @@ func (r *runContext) EmitBatch(req *requests.Request, resp *requests.JSONRespons
 }
 
 func newRunCtx(ctx context.Context, schema Schema, proto Proto) *runContext {
+	log.Println("SCHEMA", schema)
 	return &runContext{ctx: ctx, schema: schema, StreamProto: proto.Open(schema)}
 }
 
-func (r *runner) Check(ctx context.Context, proto Proto) error {
+func (r *sourceDef) Check(ctx context.Context, proto Proto) error {
 	for _, runner := range r.runners {
 		runCtx := newRunCtx(ctx, runner.schema, proto)
-		if err := runner.fn.Run(&validatorLoader{runContext: *runCtx}); err == validatorOK {
+		if err := runner.httpRunner.Run(&validatorLoader{runContext: *runCtx}); err == validatorOK {
 			return proto.EmitStatus(nil)
 		} else if err != nil {
 			return proto.EmitStatus(fmt.Errorf("validation failed: %s", err.Error()))
@@ -331,7 +379,7 @@ func (r *runner) Check(ctx context.Context, proto Proto) error {
 	return fmt.Errorf("validation failed: unexpected error")
 }
 
-func (r *runner) Discover(ctx context.Context, proto Proto) error {
+func (r *sourceDef) Discover(ctx context.Context, proto Proto) error {
 	return r.Run(ctx, proto, false)
 }
 
@@ -341,7 +389,7 @@ type ConnectorSpecification struct {
 	ConnectionSpecification *jsonschema.Document `json:"connectionSpecification"`
 }
 
-func (r *runner) Spec(ctx context.Context, proto Proto) error {
+func (r *sourceDef) Spec(ctx context.Context, proto Proto) error {
 	return proto.EmitSpec(ConnectorSpecification{
 		DocumentationURL:        "127.0.0.1/docs",
 		SupportsIncremental:     true, // why is this important to share?
@@ -349,39 +397,52 @@ func (r *runner) Spec(ctx context.Context, proto Proto) error {
 	})
 }
 
-func (r *runner) Read(ctx context.Context, proto Proto) error {
+func (r *sourceDef) Read(ctx context.Context, proto Proto) error {
 	return r.Run(ctx, proto, true)
 }
 
-func (r *runner) Run(ctx context.Context, proto Proto, sync bool) error {
+func (r *sourceDef) Run(ctx context.Context, proto Proto, sync bool) error {
 	wg, ctx := errgroup.WithContext(ctx)
 	for _, runner := range r.runners {
 		runner := runner // copy
-		sp := proto.Open(runner.schema)
-		if sp == nil {
-			continue
-		}
 		wg.Go(func() (err error) {
-			return run(ctx, sp, runner, sync)
+			return run(ctx, proto, runner, sync)
 		})
 	}
 	return wg.Wait()
 }
 
-func run(ctx context.Context, pw StreamProto, runner runnerTyp, sync bool) (err error) {
+const useRecover = false
+
+func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err error) {
+	pw := newRunCtx(ctx, runner.schema, proto)
+	if pw.StreamProto == nil {
+		// skip stream
+		return nil
+	}
+
 	defer func() {
-		if pErr := recover(); pErr != nil {
-			s := debug.Stack()
-			log.Println(string(s))
-			err = panicErr(s)
+		if useRecover {
+			if pErr := recover(); pErr != nil {
+				s := debug.Stack()
+				log.Println(string(s))
+				err = panicErr(s)
+			}
 		}
+
 		if err != nil {
 			err = pw.EmitLog(err)
 		}
 	}()
 
 	if sync {
-		return runner.fn.Run(&runContext{StreamProto: pw, ctx: ctx})
+		if runner.httpRunner != nil {
+			return runner.httpRunner.Run(pw)
+		} else if runner.fsRunner != nil {
+			return runner.fsRunner.Run(pw)
+		} else {
+			return fmt.Errorf("runner not implemented")
+		}
 	}
 	return nil
 }

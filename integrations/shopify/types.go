@@ -4,11 +4,9 @@ import (
 	"github.com/ajzo90/go-integ"
 )
 
-var Incremental, Field = integ.Incremental, integ.Field
+var id = integ.Field("id")
 
-var id = Field("id")
-
-var users = Incremental("users", struct {
+var users = integ.Incremental("users", struct {
 	Id               int    `json:"id"`
 	Email            string `json:"email"`
 	CreatedAt        string `json:"created_at"`
@@ -17,7 +15,7 @@ var users = Incremental("users", struct {
 	AcceptsMarketing bool   `json:"accepts_marketing"`
 }{}).Primary(id)
 
-var orders = Incremental("orders", struct {
+var orders = integ.Incremental("orders", struct {
 	Id        string  `json:"id"`
 	Price     float64 `json:"price"`
 	UpdatedAt string  `json:"updated_at"`

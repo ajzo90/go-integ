@@ -9,8 +9,8 @@ import (
 )
 
 var Source = integ.NewSource(config{}).
-	AddStream(users, Runner("customers")).
-	AddStream(orders, Runner("orders"))
+	HttpStream(users, Runner("customers")).
+	HttpStream(orders, Runner("orders"))
 
 type config struct {
 	ApiKey integ.MaskedString `json:"api_key"`
@@ -24,7 +24,7 @@ func (config *config) request() *requests.Request {
 		Extended().Doer(integ.DefaultRetryer()).Clone()
 }
 
-func Runner(path string) integ.Runner {
+func Runner(path string) integ.HttpRunner {
 	return &runner{path: path}
 }
 
@@ -32,7 +32,7 @@ type runner struct {
 	path string
 }
 
-func (s *runner) Run(ctx integ.StreamContext) error {
+func (s *runner) Run(ctx integ.HttpContext) error {
 	var state struct {
 		To time.Time
 	}
@@ -40,7 +40,6 @@ func (s *runner) Run(ctx integ.StreamContext) error {
 	if err := ctx.Load(&config, &state); err != nil {
 		return err
 	}
-
 	from, to := timeWindow(state.To)
 
 	req := config.request().

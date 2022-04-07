@@ -9,8 +9,9 @@ import (
 )
 
 var Source = integ.NewSource(config{}).
-	AddStream(users, Runner).
-	AddStream(orders, Runner).
+	HttpRunner(Runner).
+	HttpStream(users).
+	HttpStream(orders).
 	Documentation("https://developer.sitoo.com").
 	Notes(`prototype/draft`)
 
@@ -36,7 +37,7 @@ type config struct {
 
 // todo: implement incremental sync
 
-var Runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
+var Runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
 	cnf := config{Num: 10}
 	if err := ctx.Load(&cnf, nil); err != nil {
 		return err

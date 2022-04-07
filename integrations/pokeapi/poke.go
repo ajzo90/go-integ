@@ -5,6 +5,9 @@ import (
 	"github.com/ajzo90/go-requests"
 )
 
+var Poke = integ.NewSource(config{}).
+	HttpStream(integ.NonIncremental("pokemon", pokemon{}), runner)
+
 type config struct {
 	Url string
 }
@@ -14,7 +17,7 @@ type pokemon struct {
 	Url  string `json:"url"`
 }
 
-var runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
+var runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
 	var cnf config
 	if err := ctx.Load(&cnf, nil); err != nil {
 		return err
@@ -24,7 +27,8 @@ var runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
 		Path("pokemon").
 		Query("limit", "100")
 
-	for resp := new(requests.JSONResponse); ; {
+	resp := new(requests.JSONResponse)
+	for {
 		if err := ctx.EmitBatch(req, resp, "results"); err != nil {
 			return err
 		} else if next := resp.String("next"); next == "" {
@@ -34,6 +38,3 @@ var runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
 		}
 	}
 })
-
-var Poke = integ.NewSource(config{}).
-	AddStream(integ.NonIncremental("pokemon", pokemon{}), runner)

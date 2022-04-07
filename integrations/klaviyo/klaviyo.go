@@ -8,13 +8,8 @@ import (
 	"github.com/ajzo90/go-requests"
 )
 
-var user = struct {
-	Id    string `json:"id"`
-	Email string `json:"email"`
-}{}
-
 var Source = integ.NewSource(config{}).
-	AddStream(integ.NonIncremental("members", user), RunnerV2("members")).
+	HttpStream(integ.NonIncremental("members", user), RunnerV2("members")).
 	Documentation("https://developers.klaviyo.com/en/reference/get-members").
 	Notes(`prototype/draft`)
 
@@ -26,7 +21,7 @@ type config struct {
 
 type RunnerV2 string
 
-func (s RunnerV2) Run(ctx integ.StreamContext) error {
+func (s RunnerV2) Run(ctx integ.HttpContext) error {
 	var config config
 	if err := ctx.Load(&config, nil); err != nil {
 		return err
@@ -48,3 +43,8 @@ func (s RunnerV2) Run(ctx integ.StreamContext) error {
 		}
 	}
 }
+
+var user = struct {
+	Id    string `json:"id"`
+	Email string `json:"email"`
+}{}
