@@ -20,7 +20,7 @@ var runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
 		return err
 	}
 
-	var req = requests.New(cnf.Url).
+	req := requests.New(cnf.Url).
 		Path("pokemon").
 		Query("limit", "100")
 
@@ -36,4 +36,4 @@ var runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
 })
 
 var Poke = integ.NewSource(config{}).
-	Add(integ.NonIncremental("pokemon", pokemon{}), runner)
+	AddStream(integ.NonIncremental("pokemon", pokemon{}), runner)

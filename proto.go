@@ -244,6 +244,14 @@ func NewSource(config interface{}) *runner {
 	return &runner{config: config}
 }
 
+func (r *runner) Documentation(links ...string) *runner {
+	return r
+}
+
+func (r *runner) Notes(links ...string) *runner {
+	return r
+}
+
 func Server(loader Loader, protos Protos) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		p := strings.Split(request.URL.Path, "/")
@@ -259,7 +267,7 @@ type Loader interface {
 	Handle(ctx context.Context, cmd Command, w io.Writer, r io.Reader, protos Protos) error
 }
 
-func (r *runner) Add(schema SchemaBuilder, runner Runner) *runner {
+func (r *runner) AddStream(schema SchemaBuilder, runner Runner) *runner {
 	r.runners = append(r.runners, runnerTyp{schema: schema.Schema, fn: runner})
 	return r
 }

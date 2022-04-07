@@ -1,74 +1,62 @@
 package sitoo
 
 import (
-	"net/http"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-requests"
 )
 
 var Source = integ.NewSource(config{}).
-	Add(users, Runner("users")).
-	Add(orders, Runner("orders"))
+	AddStream(users, Runner).
+	AddStream(orders, Runner).
+	Documentation("https://developer.sitoo.com").
+	Notes(`prototype/draft`)
+
+var users = integ.NonIncremental("users", struct {
+	UserId  string `json:"userid"`
+	Email   string `json:"email"`
+	Company string `json:"company"`
+}{})
+
+var orders = integ.NonIncremental("orders", struct {
+	OrderId int    `json:"orderid"`
+	Email   string `json:"email"`
+}{})
 
 type config struct {
-	AccountId  string `json:"account_id"`
-	SiteId     string `json:"site_id"`
-	ApiId      string `json:"api_id"`
-	Password   string `json:"password"`
-	BaseURL    string `json:"base_url"`
-	TotalCount int    `json:"total_count"`
-	Url        string `json:"url"`
+	Url       string `hint:"https://api.mysitoo.com/v2/"`
+	AccountId string
+	SiteId    string
+	ApiId     string
+	Password  string
+	Num       int
 }
 
-var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
-}))
+// todo: implement incremental sync
 
-func Runner(path string) integ.Runner {
-	return &runner{path: path}
-}
-
-type runner struct {
-	path string
-}
-
-func (s *runner) Run(ctx integ.StreamContext) error {
-	const num = 10 //default:10, max:unknown
-	var count, start int
-	var state struct {
-		To time.Time
-	}
-	var config config
-
-	if err := ctx.Load(&config, &state); err != nil {
+var Runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
+	cnf := config{Num: 10}
+	if err := ctx.Load(&cnf, nil); err != nil {
 		return err
 	}
-	newTo := time.Now()
 
-	reqB := requests.New(config.Url).BasicAuth(config.ApiId, config.Password).Extended().Doer(doer).Clone
+	var start int
 
-	schema := ctx.Schema()
+	req := requests.New(cnf.Url).
+		BasicAuth(cnf.ApiId, cnf.Password).
+		Path("accounts/"+cnf.AccountId+"/sites/"+cnf.SiteId+"/"+ctx.Schema().Name+".json").
+		Query("fields", strings.Join(ctx.Schema().FieldKeys(), ",")).
+		Query("num", cnf.Num).
+		Query("start", func() string { return strconv.Itoa(start) }).
+		Extended().Doer(integ.DefaultRetryer()).Clone()
 
-	for resp := new(requests.JSONResponse); ; {
-		req := s.updateQ(reqB(), config, schema, num, start)
+	for resp := new(requests.JSONResponse); ; start += cnf.Num {
 		if err := ctx.EmitBatch(req, resp, "value"); err != nil {
 			return err
-		} else if start+num > resp.Int("totalcount") {
-			state.To = newTo
-			return ctx.EmitState(state)
-		} else {
-			count = count + num
-			start = count
+		} else if len(resp.GetArray("value")) < cnf.Num {
+			return nil
 		}
 	}
-}
-
-func (s *runner) updateQ(reqB *requests.Request, config config, schema integ.Schema, num int, start int) *requests.Request {
-	return reqB.
-		Path(config.AccountId+"/sites/"+config.SiteId+"/"+s.path+".json").
-		Query("fields", strings.Join(schema.FieldKeys(), ",")).
-		Query("num", num).
-		Query("start", start)
-}
+})

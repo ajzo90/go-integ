@@ -1,7 +1,6 @@
 package shopify
 
 import (
-	"net/http"
 	"strings"
 	"time"
 
@@ -10,22 +9,19 @@ import (
 )
 
 var Source = integ.NewSource(config{}).
-	Add(users, Runner("customers")).
-	Add(orders, Runner("orders"))
+	AddStream(users, Runner("customers")).
+	AddStream(orders, Runner("orders"))
 
 type config struct {
 	ApiKey integ.MaskedString `json:"api_key"`
 	Url    string             `json:"url" default:"x" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
 }
 
-var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
-}))
-
 func (config *config) request() *requests.Request {
 	return requests.
 		New(config.Url).
 		SecretHeader("X-Shopify-Access-Token", config.ApiKey).
-		Extended().Doer(doer).Clone()
+		Extended().Doer(integ.DefaultRetryer()).Clone()
 }
 
 func Runner(path string) integ.Runner {
