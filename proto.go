@@ -244,6 +244,10 @@ func NewSource(config interface{}) *runner {
 	return &runner{config: config}
 }
 
+func (r *runner) Documentation(links ...string) *runner {
+	return r
+}
+
 func Server(loader Loader, protos Protos) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		p := strings.Split(request.URL.Path, "/")

@@ -20,7 +20,7 @@ var runner = integ.RunnerFunc(func(ctx integ.StreamContext) error {
 		return err
 	}
 
-	var req = requests.New(cnf.Url).
+	req := requests.New(cnf.Url).
 		Path("pokemon").
 		Query("limit", "100")
 

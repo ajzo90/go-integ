@@ -2,7 +2,6 @@ package storm
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -20,9 +19,6 @@ type config struct {
 	Password string `json:"password"`
 	Url      string `json:"url"`
 }
-
-var doer = requests.NewRetryer(http.DefaultClient, requests.Logger(func(id int, err error, msg string) {
-}))
 
 func Runner(path string) integ.Runner {
 	return &runner{path: path}
@@ -43,7 +39,7 @@ func (s *runner) Run(ctx integ.StreamContext) error {
 	}
 	newTo := time.Now()
 
-	reqB := requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Doer(doer).Clone
+	reqB := requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Doer(integ.DefaultRetryer()).Clone
 
 	schema := ctx.Schema()
 
