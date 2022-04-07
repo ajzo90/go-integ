@@ -13,7 +13,11 @@ var Loader = integ.NewSource(config{}).
 	HttpStream(orders, Runner("Orders/Orders")).
 	HttpStream(customers, Runner("Customers/Customers")).
 	HttpStream(items, Runner("Products/ProductSkus")).
-	Documentation("https://storm.io/docs/storm-api/")
+	Documentation(
+		"https://storm.io/docs/storm-api/",
+		"https://stormdocs.atlassian.net/servicedesk/customer/portal/1/article/2215706817",
+		"https://query.lab.storm.io/2.0/Docs/Index#/Orders/Entities/OrderItem",
+	)
 
 type config struct {
 	User     string `json:"user"`

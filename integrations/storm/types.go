@@ -4,8 +4,6 @@ import (
 	"github.com/ajzo90/go-integ"
 )
 
-// https://stormdocs.atlassian.net/servicedesk/customer/portal/1/article/2215706817
-// https://query.lab.storm.io/2.0/Docs/Index#/Orders/Entities/OrderItem creds(21:XXX)
 var orders = integ.Incremental("orders", struct {
 	Id        int32
 	OrderNo   float64
