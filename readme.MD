@@ -15,83 +15,50 @@ extended to a custom protocol format.
 
 ## Example integration
 
-Shopify source with incremental sync
+Pokeapi source with (mocked) incremental sync, see more examples in /integrations folder.
 
 ```go
-package shopify
+package pokeapi
 
 import (
-	"strings"
-	"time"
-
 	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-requests"
 )
 
+var Poke = integ.NewSource(config{}).
+	HttpStream(integ.Incremental("pokemon", pokemon{}), runner)
+
 type config struct {
-	ApiKey integ.MaskedString `json:"api_key"`
-	Url    string             `json:"url" default:"x" hint:"https://xxx.myshopify.com/admin/api/2021-10/"`
+	Url string
 }
 
-func (config *config) request() *requests.Request {
-	return requests.New(config.Url).
-		SecretHeader("X-Shopify-Access-Token", config.ApiKey).
-		Extended().Clone()
+type pokemon struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
 }
 
-type Runner string
-
-func (r Runner) Run(ctx integ.StreamContext) error {
-	var state struct {
-		To time.Time
-	}
-	var config config
-	if err := ctx.Load(&config, &state); err != nil {
+var runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
+	var cnf config
+	var dummyState struct{}
+	if err := ctx.Load(&cnf, &dummyState); err != nil {
 		return err
 	}
 
-	from, to := state.To, time.Now()
+	req := requests.New(cnf.Url).
+		Path("pokemon").
+		Query("limit", "100")
 
-	var req = config.request().
-		Path(s.path+".json").
-		Query("updated_at_min", from.Format(time.RFC3339)).
-		Query("updated_at_max", to.Format(time.RFC3339)).
-		Query("fields", strings.Join(ctx.Schema().FieldKeys(), ",")).
-		Query("status", "any")
-
-	for resp := new(requests.JSONResponse); ; {
-		if err := ctx.EmitBatch(req, resp, r); err != nil {
+	resp := new(requests.JSONResponse)
+	for {
+		if err := ctx.EmitBatch(req, resp, "results"); err != nil {
 			return err
-		} else if next := ParseNext(resp.Header("link")); next == "" {
-			state.To = to
-			return ctx.EmitState(state)
-		} else {
-			req = config.request().Url(next)
+		} else if next := resp.String("next"); next == "" {
+			return ctx.EmitState(dummyState)
+		} else if req, err = requests.FromRawURL(next); err != nil {
+			return err
 		}
 	}
-}
-
-func ParseNext(s string) string {
-	return s // shopify specific ...
-}
-
-var Loader = integ.New(config{}).
-	Add(users, Runner("customers")).
-	Add(orders, Runner("orders"))
-
-var users = integ.Incremental("users", struct {
-	Id    int    `json:"id"`
-	Email string `json:"email"`
-	...
-}{}).Primary(integ.Field("id"))
-
-var orders = integ.Incremental("orders", struct {
-	Id    string  `json:"id"`
-	Price float64 `json:"price"`
-	...
-}{}).Primary(integ.Field("id"))
-
-// ... and more streams/types..
+})
 
 ```
 
@@ -100,9 +67,9 @@ var orders = integ.Incremental("orders", struct {
 To implement a source connector you have to fulfill the `Runner` interface
 
 ```go
-type Runner interface {
-    // Run runs the sync job.
-    Run(ctx StreamContext) error
+type HttpRunner interface {
+	// Run runs the sync job.
+	Run(ctx HttpContext) error
 }
 ```
 
@@ -110,20 +77,20 @@ where the `Extractor` argument is defined by the following interface
 
 ```go
 
-type StreamContext interface {
+type HttpContext interface {
 	// Load a stream with shared config and state
 	Load(config, state interface{}) error
 
 	Schema() Schema
+
+	// EmitState emit the state
+	EmitState(v interface{}) error
 
 	// EmitBatch executes the provided request, locate the data array and emit the records
 	// (likely) called multiple times in the same run
 	// resp: (pre-allocated and reusable)
 	// path: (path to the data array)
 	EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
-
-	// EmitState emit the state
-	EmitState(v interface{}) error
 }
 ```
 

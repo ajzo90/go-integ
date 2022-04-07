@@ -19,7 +19,8 @@ type pokemon struct {
 
 var runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
 	var cnf config
-	if err := ctx.Load(&cnf, nil); err != nil {
+	var dummyState struct{}
+	if err := ctx.Load(&cnf, &dummyState); err != nil {
 		return err
 	}
 
@@ -32,7 +33,7 @@ var runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
 		if err := ctx.EmitBatch(req, resp, "results"); err != nil {
 			return err
 		} else if next := resp.String("next"); next == "" {
-			return nil
+			return ctx.EmitState(dummyState)
 		} else if req, err = requests.FromRawURL(next); err != nil {
 			return err
 		}

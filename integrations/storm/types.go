@@ -4,20 +4,20 @@ import (
 	"github.com/ajzo90/go-integ"
 )
 
-var orders = integ.Incremental("orders", struct {
+var orders = integ.NonIncremental("orders", struct {
 	Id        int32
 	OrderNo   float64
 	OrderDate string
 }{}).Primary(integ.Field("Id"))
 
-var customers = integ.Incremental("users", struct {
+var customers = integ.NonIncremental("users", struct {
 	Id           int32
 	Key          string
 	EmailAddress string
 	IsActive     bool
 }{}).Primary(integ.Field("Id"))
 
-var items = integ.Incremental("items", struct {
+var items = integ.NonIncremental("items", struct {
 	StatusId  int
 	PartNo    string
 	IsBuyable bool

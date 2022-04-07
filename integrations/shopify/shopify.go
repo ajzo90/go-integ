@@ -10,7 +10,10 @@ import (
 
 var Source = integ.NewSource(config{}).
 	HttpStream(users, Runner("customers")).
-	HttpStream(orders, Runner("orders"))
+	HttpStream(orders, Runner("orders")).
+	Documentation("xxx").
+	Notes(`prototype`).
+	Version("x")
 
 type config struct {
 	ApiKey integ.MaskedString `json:"api_key"`

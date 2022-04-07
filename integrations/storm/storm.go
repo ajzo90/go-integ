@@ -3,7 +3,6 @@ package storm
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-requests"
@@ -17,7 +16,9 @@ var Loader = integ.NewSource(config{}).
 		"https://storm.io/docs/storm-api/",
 		"https://stormdocs.atlassian.net/servicedesk/customer/portal/1/article/2215706817",
 		"https://query.lab.storm.io/2.0/Docs/Index#/Orders/Entities/OrderItem",
-	)
+		"https://documenter.getpostman.com/view/2973406/RztoKSkc",
+	).
+	Notes(`Incremental not implemented`)
 
 type config struct {
 	User     string `json:"user"`
@@ -34,21 +35,16 @@ type runner struct {
 }
 
 func (s *runner) Run(ctx integ.HttpContext) error {
-	var state struct {
-		To time.Time
-	}
 	var config config
 
-	if err := ctx.Load(&config, &state); err != nil {
+	if err := ctx.Load(&config, nil); err != nil {
 		return err
 	}
-	newTo := time.Now()
-
-	reqB := requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Doer(integ.DefaultRetryer()).Clone
+	newReq := requests.New(config.Url).BasicAuth(config.User, config.Password).Extended().Doer(integ.DefaultRetryer()).Clone
 
 	schema := ctx.Schema()
 
-	req := reqB().Path(s.path).Query("$select", strings.Join(schema.FieldKeys(), ","))
+	req := newReq().Path(s.path).Query("$select", strings.Join(schema.FieldKeys(), ","))
 
 	for name, p := range schema.JsonSchema.Properties {
 		for _, typ := range p.Type {
@@ -62,12 +58,9 @@ func (s *runner) Run(ctx integ.HttpContext) error {
 		if err := ctx.EmitBatch(req, resp, "value"); err != nil {
 			return err
 		} else if next := resp.String("@odata.nextLink"); next == "" {
-			state.To = newTo
-			return ctx.EmitState(state)
+			return nil
 		} else {
-			req = reqB().Url(next)
+			req = newReq().Url(next)
 		}
 	}
 }
-
-//
