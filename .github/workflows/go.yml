@@ -43,9 +43,10 @@ jobs:
       - name: gofmt
         run: if [ "$(go run mvdan.cc/gofumpt@latest -l . | wc -l)" -gt 0 ]; then go run mvdan.cc/gofumpt@latest -l . ; exit 1; fi
         # fix with: go run mvdan.cc/gofumpt@latest -s -w ./
-
       # Install all the dependencies
       - name: Install dependencies
+
+
         run: |
           go get -u golang.org/x/lint/golint
       - name: Run coverage
