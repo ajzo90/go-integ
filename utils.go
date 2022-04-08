@@ -1,9 +1,12 @@
 package integ
 
 import (
-	"github.com/ajzo90/go-jsonschema-generator"
+	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/ajzo90/go-jsonschema-generator"
+	"github.com/ajzo90/go-requests"
 )
 
 type MaskedString string
