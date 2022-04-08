@@ -1,2 +1,5 @@
-
-pkg/shopify/shopify_data_test.go
+.idea
+cmd/soap/main.go
+stubs/airbyte-config.json
+stubs/shopify.txt
+stubs/storm.txt
