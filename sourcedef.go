@@ -3,10 +3,11 @@ package integ
 import (
 	"context"
 	"fmt"
-	"github.com/ajzo90/go-jsonschema-generator"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"strings"
+
+	"github.com/ajzo90/go-jsonschema-generator"
+	"golang.org/x/sync/errgroup"
 )
 
 type sourceDef struct {

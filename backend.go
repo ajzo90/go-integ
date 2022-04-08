@@ -1,5 +1,11 @@
 package integ
 
+import (
+	"context"
+
+	"github.com/ajzo90/go-requests"
+)
+
 type Proto interface {
 	// Open a new stream loader. Should emit or record the schema information
 	// Proto can return nil in case this stream should not be emitted
