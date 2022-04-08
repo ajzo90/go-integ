@@ -29,14 +29,6 @@ all: $(sagefile)
 convco-check: $(sagefile)
 	@$(sagefile) ConvcoCheck
 
-.PHONY: format-markdown
-format-markdown: $(sagefile)
-	@$(sagefile) FormatMarkdown
-
-.PHONY: format-yaml
-format-yaml: $(sagefile)
-	@$(sagefile) FormatYAML
-
 .PHONY: git-verify-no-diff
 git-verify-no-diff: $(sagefile)
 	@$(sagefile) GitVerifyNoDiff
