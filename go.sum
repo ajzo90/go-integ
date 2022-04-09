@@ -2,6 +2,8 @@ github.com/ajzo90/go-jsonschema-generator v0.0.0-20220309220013-13e685e490a5 h1:
 github.com/ajzo90/go-jsonschema-generator v0.0.0-20220309220013-13e685e490a5/go.mod h1:RECGC5ycY7fn0Ia7DlgmDbz8nqnuaLVzRh3T2/OCgzk=
 github.com/ajzo90/go-requests v0.0.3-0.20220405205144-b6f763530ad4 h1:/h4+MnRvt755xZ4vrxa5Xf6uwMwc4K8x8NbAZhtkPso=
 github.com/ajzo90/go-requests v0.0.3-0.20220405205144-b6f763530ad4/go.mod h1:8kjJKSyvJTiOqH4NN08eBs0lXPoP/oqlTazmbeti41I=
+github.com/ajzo90/go-requests v0.0.3-0.20220408133538-d3bab02440db h1:oz929/GC94o9BEqQZxKtXUQifonx4QqcZcSfCBFqj3Q=
+github.com/ajzo90/go-requests v0.0.3-0.20220408133538-d3bab02440db/go.mod h1:8kjJKSyvJTiOqH4NN08eBs0lXPoP/oqlTazmbeti41I=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
