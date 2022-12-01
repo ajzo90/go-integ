@@ -26,8 +26,11 @@ func (m *streamProto) EmitBatch(ctx context.Context, req *requests.Request, resp
 		return err
 	}
 	m.recBuf = m.recBuf[:0]
+
+	record := m.rec.GetObject("record")
+
 	for _, v := range resp.GetArray(path...) {
-		m.rec.Set("record", v)
+		record.Set("data", v)
 		m.recBuf = append(m.rec.MarshalTo(m.recBuf), '\n')
 	}
 	return m.i.Write(m.recBuf)

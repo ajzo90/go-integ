@@ -18,7 +18,7 @@ func (j *jsonl) ParseBytes(bytes []byte) (*fastjson.Value, error) {
 	j.a.Reset()
 	j.s.InitBytes(bytes)
 
-	var root = j.a.NewArray()
+	root := j.a.NewArray()
 
 	for i := 0; j.s.Next(); i++ {
 		root.SetArrayItem(i, j.s.Value())

@@ -2,6 +2,7 @@ package airbyte
 
 import (
 	"strings"
+	"time"
 
 	"github.com/ajzo90/go-integ"
 	"github.com/valyala/fastjson"
@@ -17,11 +18,16 @@ type proto struct {
 	schemas  []integ.Schema
 }
 
-func newWrap(typ integ.MsgType, stream string) *fastjson.Value {
+func newRecord(stream string) *fastjson.Value {
 	var a fastjson.Arena
 	o := a.NewObject()
-	o.Set("type", a.NewString(string(typ)))
-	o.Set("stream", a.NewString(stream))
+	o.Set("type", a.NewString(string(integ.RECORD)))
+
+	record := a.NewObject()
+	record.Set("stream", a.NewString(stream))
+	record.Set("emitted_at", a.NewNumberInt(int(time.Now().UnixMilli())))
+	o.Set("record", record)
+
 	return o
 }
 
@@ -30,7 +36,7 @@ func (m *proto) Open(schema integ.Schema) integ.StreamProto {
 		m.regState[schema.Name] = v
 	}
 	m.schemas = append(m.schemas, schema)
-	return &streamProto{i: m, regStateFn: regStateFn, rec: newWrap(integ.RECORD, schema.Name), schema: schema}
+	return &streamProto{i: m, regStateFn: regStateFn, rec: newRecord(schema.Name), schema: schema}
 }
 
 // Close flushes remaining data (state, streams)

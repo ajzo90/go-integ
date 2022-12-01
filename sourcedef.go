@@ -75,6 +75,11 @@ func (r *sourceDef) Notes(links ...string) *sourceDef {
 	return r
 }
 
+// the streams are interleaved
+func (r *sourceDef) Interleaved() *sourceDef {
+	return r
+}
+
 func (r *sourceDef) HttpRunner(runner HttpRunner) *sourceDef {
 	r.httpRunner = runner
 	return r
@@ -97,6 +102,8 @@ func (r *sourceDef) HttpStream(schema SchemaBuilder, runner ...HttpRunner) *sour
 	var fn HttpRunner
 	if len(runner) == 1 {
 		fn = runner[0]
+	} else {
+		fn = r.httpRunner
 	}
 	r.runners = append(r.runners, runnerTyp{schema: schema.Schema, httpRunner: fn})
 	return r

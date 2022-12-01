@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -26,12 +25,17 @@ func cmd(args []string, loader integ.Loader, w io.Writer) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: %s cmd [--config config] [--state state] [--catalog catalog]", args[0])
 	}
-	cmd := args[1]
-	args = args[2:]
+	cmd, args := integ.Command(args[1]), args[2:]
+
+	switch cmd {
+	case integ.CmdSpec, integ.CmdCheck, integ.CmdRead, integ.CmdDiscover:
+	default:
+		return fmt.Errorf("invalid command '%s'", cmd)
+	}
 
 	b := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(b)
-	if err := enc.Encode(map[string]interface{}{"type": "SETTINGS", "settings": map[string]interface{}{"format": "airbyte"}}); err != nil {
+	if err := enc.Encode(map[string]any{"type": "SETTINGS", "settings": map[string]interface{}{"format": "airbyte"}}); err != nil {
 		return err
 	}
 
@@ -41,7 +45,7 @@ func cmd(args []string, loader integ.Loader, w io.Writer) error {
 		}
 
 		m := map[string]interface{}{}
-		b, err := ioutil.ReadFile(args[i+1])
+		b, err := os.ReadFile(args[i+1])
 		if errors.Is(err, fs.ErrNotExist) {
 			b = []byte(args[i+1])
 		} else if err != nil {
@@ -61,12 +65,12 @@ func cmd(args []string, loader integ.Loader, w io.Writer) error {
 		case "--catalog":
 			typ, key = "CATALOG", "catalog"
 		}
-		if err := enc.Encode(map[string]interface{}{"type": typ, key: m}); err != nil {
+		if err := enc.Encode(map[string]any{"type": typ, key: m}); err != nil {
 			return err
 		}
 	}
-
-	return loader.Handle(context.Background(), integ.Command(cmd), w, bytes.NewReader(b.Bytes()), integ.Protos{
+	
+	return loader.Handle(context.Background(), cmd, w, bytes.NewReader(b.Bytes()), integ.Protos{
 		"airbyte": Proto,
 	})
 }
