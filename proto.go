@@ -180,7 +180,6 @@ func (r *runContext) EmitBatch(req *requests.Request, resp *requests.JSONRespons
 }
 
 func newRunCtx(ctx context.Context, schema Schema, proto Proto) *runContext {
-	log.Println("SCHEMA", schema)
 	return &runContext{ctx: ctx, schema: schema, StreamProto: proto.Open(schema)}
 }
 
