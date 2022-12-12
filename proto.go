@@ -59,12 +59,12 @@ func Open(r io.Reader, w io.Writer, cmd Command, protos Protos) (Proto, error) {
 			return nil, err
 		}
 		switch t := MsgType(v.GetStringBytes("type")); t {
-		case "SETTINGS":
+		case SETTINGS:
 			b := marshal(v.Get("settings"))
 			if err := json.NewDecoder(bytes.NewReader(b)).Decode(&i.settings); err != nil {
 				return nil, err
 			}
-		case "CONFIG":
+		case CONFIG:
 			i.config = marshal(v.Get("config"))
 		case STATE:
 			stream := string(v.GetStringBytes("stream"))
@@ -127,22 +127,51 @@ const (
 	CONNECTION_STATUS MsgType = "CONNECTION_STATUS"
 	CATALOG           MsgType = "CATALOG"
 	SPEC              MsgType = "SPEC"
+
+	CONFIG   MsgType = "CONFIG"
+	SETTINGS MsgType = "SETTINGS"
 )
 
 type (
 	ProtoFn func(protocol *Protocol) Proto
 	Protos  map[string]ProtoFn
+	Loaders map[string]Loader
 )
 
-func Server(loader Loader, protos Protos) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+func Handler(loaders Loaders, protos Protos) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var p = r.URL.Path
+		if strings.HasPrefix(p, "/discover") {
+			var o []string
+			for k := range loaders {
+				o = append(o, k)
+			}
+			if err := json.NewEncoder(w).Encode(o); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		for name, loader := range loaders {
+			if len(p) >= 2+len(name) && p[1+len(name)] == '/' && p[1:][:len(name)] == name {
+				serveLoader(loader, protos).ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.NotFound(w, r)
+	}
+}
+
+func serveLoader(loader Loader, protos Protos) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		p := strings.Split(request.URL.Path, "/")
 		last := p[len(p)-1]
 
 		if err := loader.Handle(request.Context(), Command(last), writer, request.Body, protos); err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 		}
-	})
+	}
 }
 
 type panicErr string
