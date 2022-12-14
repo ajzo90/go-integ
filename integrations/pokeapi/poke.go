@@ -6,7 +6,7 @@ import (
 )
 
 var Poke = integ.NewSource(config{}).
-	HttpStream(integ.NonIncremental("pokemon", pokemon{}), runner)
+	HttpStream(integ.NonIncremental("pokemon", pokemon{}).Primary(integ.Field("name")), runner)
 
 type config struct {
 	Url string

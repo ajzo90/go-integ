@@ -127,6 +127,7 @@ const (
 	CONNECTION_STATUS MsgType = "CONNECTION_STATUS"
 	CATALOG           MsgType = "CATALOG"
 	SPEC              MsgType = "SPEC"
+	SCHEMA            MsgType = "SCHEMA"
 
 	CONFIG   MsgType = "CONFIG"
 	SETTINGS MsgType = "SETTINGS"

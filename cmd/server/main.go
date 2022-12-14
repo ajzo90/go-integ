@@ -11,6 +11,7 @@ import (
 	"github.com/ajzo90/go-integ/integrations/shopify"
 	"github.com/ajzo90/go-integ/integrations/storm"
 	"github.com/ajzo90/go-integ/pkg/airbyte"
+	"github.com/ajzo90/go-integ/pkg/singer"
 	"golang.org/x/crypto/nacl/sign"
 	"log"
 	"net/http"
@@ -25,7 +26,8 @@ var loaders = integ.Loaders{
 }
 
 var protos = integ.Protos{
-	"": airbyte.Proto,
+	"":       airbyte.Proto,
+	"singer": singer.Proto,
 }
 
 type Token struct {
