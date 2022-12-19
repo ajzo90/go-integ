@@ -31,12 +31,12 @@ func newRecord(stream string) *fastjson.Value {
 	return o
 }
 
-func (m *proto) Open(schema integ.Schema) integ.StreamProto {
+func (m *proto) Open(schema integ.Schema) (integ.StreamProto, error) {
 	regStateFn := func(v interface{}) {
 		m.regState[schema.Name] = v
 	}
 	m.schemas = append(m.schemas, schema)
-	return &streamProto{i: m, regStateFn: regStateFn, rec: newRecord(schema.Name), schema: schema}
+	return &streamProto{p: m, regStateFn: regStateFn, rec: newRecord(schema.Name), schema: schema}, nil
 }
 
 // Close flushes remaining data (state, streams)

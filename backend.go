@@ -1,15 +1,13 @@
 package integ
 
 import (
-	"context"
-
-	"github.com/ajzo90/go-requests"
+	"github.com/valyala/fastjson"
 )
 
 type Proto interface {
 	// Open a new stream loader. Should emit or record the schema information
 	// Proto can return nil in case this stream should not be emitted
-	Open(typ Schema) StreamProto
+	Open(typ Schema) (StreamProto, error)
 
 	// Close closes the current session. Flushes pending data
 	Close() error
@@ -23,9 +21,11 @@ type Proto interface {
 type StreamProto interface {
 	Load(config, state interface{}) error
 
-	EmitBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, path ...string) error
+	EmitValues(arr []*fastjson.Value) error
 
 	EmitState(v interface{}) error
 
 	EmitLog(v interface{}) error
+
+	Flush() error
 }

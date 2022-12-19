@@ -1,39 +1,42 @@
 package airbyte
 
 import (
-	"context"
-
 	"github.com/ajzo90/go-integ"
-	"github.com/ajzo90/go-requests"
 	"github.com/valyala/fastjson"
 )
 
 func (m *streamProto) Load(config, state interface{}) error {
-	return m.i.Load(m.schema.Name, config, state)
+	return m.p.Load(m.schema.Name, config, state)
 }
 
 type streamProto struct {
 	rec        *fastjson.Value
 	regStateFn func(v interface{})
 	recBuf     []byte
-	i          *proto
+	p          *proto
 	schema     integ.Schema
 }
 
-func (m *streamProto) EmitBatch(ctx context.Context, req *requests.Request, resp *requests.JSONResponse, path ...string) error {
-	err := req.Extended().ExecJSONPreAlloc(resp, ctx)
-	if err != nil {
-		return err
-	}
-	m.recBuf = m.recBuf[:0]
-
+func (m *streamProto) EmitValues(arr []*fastjson.Value) error {
 	record := m.rec.GetObject("record")
-
-	for _, v := range resp.GetArray(path...) {
+	for _, v := range arr {
 		record.Set("data", v)
 		m.recBuf = append(m.rec.MarshalTo(m.recBuf), '\n')
 	}
-	return m.i.Write(m.recBuf)
+	return m.flush(false)
+}
+
+func (m *streamProto) flush(last bool) error {
+	if last || len(m.recBuf) > 4096 {
+		err := m.p.Write(m.recBuf)
+		m.recBuf = m.recBuf[:0]
+		return err
+	}
+	return nil
+}
+
+func (m *streamProto) Flush() error {
+	return m.flush(true)
 }
 
 func (m *streamProto) EmitState(v interface{}) error {
@@ -42,7 +45,7 @@ func (m *streamProto) EmitState(v interface{}) error {
 }
 
 func (m *streamProto) EmitLog(v interface{}) error {
-	return m.i.emit(integ.LOG, logErr(v))
+	return m.p.emit(integ.LOG, logErr(v))
 }
 
 func logErr(v interface{}) interface{} {

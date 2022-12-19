@@ -6,15 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ajzo90/go-jsonschema-generator"
+	"github.com/ajzo90/go-requests"
+	"github.com/klauspost/compress/zstd"
+	"github.com/valyala/fastjson"
 	"io"
 	"log"
 	"net/http"
 	"runtime/debug"
 	"strings"
-
-	"github.com/ajzo90/go-jsonschema-generator"
-	"github.com/ajzo90/go-requests"
-	"github.com/valyala/fastjson"
 )
 
 type Loader interface {
@@ -164,13 +164,42 @@ func Handler(loaders Loaders, protos Protos) http.HandlerFunc {
 	}
 }
 
+type nopCloser struct {
+	w io.Writer
+}
+
+func (n2 nopCloser) Close() error {
+	if c, ok := n2.w.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+func (n2 nopCloser) Write(p []byte) (n int, err error) {
+	return n2.w.Write(p)
+}
+
 func serveLoader(loader Loader, protos Protos) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		p := strings.Split(request.URL.Path, "/")
 		last := p[len(p)-1]
 
-		if err := loader.Handle(request.Context(), Command(last), writer, request.Body, protos); err != nil {
+		var wc io.WriteCloser = nopCloser{w: writer}
+
+		var useZstd = request.Header.Get("Accept-Zstd") != ""
+		if useZstd {
+			writer.Header().Add("X-Compression", "zstd")
+			zW, err := zstd.NewWriter(wc)
+			if err != nil {
+				panic(err)
+			}
+			wc = zW
+		}
+
+		if err := loader.Handle(request.Context(), Command(last), wc, request.Body, protos); err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
+		} else if err := wc.Close(); err != nil {
+			panic(err)
 		}
 	}
 }
@@ -182,7 +211,7 @@ func (p panicErr) Error() string {
 }
 
 type validatorLoader struct {
-	runContext
+	httpRunContext
 }
 
 func (m *validatorLoader) EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
@@ -195,22 +224,50 @@ func (m *validatorLoader) EmitBatch(req *requests.Request, resp *requests.JSONRe
 
 var validatorOK = fmt.Errorf("validatorOK")
 
-type runContext struct {
+type baseRunContext struct {
 	ctx    context.Context
 	schema Schema
 	StreamProto
 }
 
-func (r *runContext) Schema() Schema {
+func makeBaseRunCtx(ctx context.Context, schema Schema, sp StreamProto) baseRunContext {
+	return baseRunContext{ctx: ctx, schema: schema, StreamProto: sp}
+}
+
+func (r *baseRunContext) Schema() Schema {
 	return r.schema
 }
 
-func (r *runContext) EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error {
-	return r.StreamProto.EmitBatch(r.ctx, req, resp, path...)
+func (r *baseRunContext) EmitValue(value any) error {
+	b, err := json.Marshal([]any{value})
+	if err != nil {
+		return err
+	}
+	v, err := fastjson.ParseBytes(b)
+	if err != nil {
+		return err
+	}
+	return r.EmitValues(v.GetArray())
 }
 
-func newRunCtx(ctx context.Context, schema Schema, proto Proto) *runContext {
-	return &runContext{ctx: ctx, schema: schema, StreamProto: proto.Open(schema)}
+func (r *httpRunContext) EmitValues(values []*fastjson.Value) error {
+	return r.StreamProto.EmitValues(values)
+}
+
+type httpRunContext struct {
+	baseRunContext
+}
+
+func (r *httpRunContext) EmitBatch(req *requests.Request, resp *requests.JSONResponse, keys ...string) error {
+	err := req.Extended().ExecJSONPreAlloc(resp, r.ctx)
+	if err != nil {
+		return err
+	}
+	return r.EmitValues(resp.GetArray(keys...))
+}
+
+func newHTTPRunCtx(ctx context.Context, schema Schema, sp StreamProto) *httpRunContext {
+	return &httpRunContext{baseRunContext: makeBaseRunCtx(ctx, schema, sp)}
 }
 
 type ConnectorSpecification struct {
@@ -222,8 +279,10 @@ type ConnectorSpecification struct {
 const useRecover = false
 
 func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err error) {
-	pw := newRunCtx(ctx, runner.schema, proto)
-	if pw.StreamProto == nil {
+	sp, err := proto.Open(runner.schema)
+	if err != nil {
+		return err
+	} else if sp == nil {
 		// skip stream
 		return nil
 	}
@@ -237,19 +296,43 @@ func run(ctx context.Context, proto Proto, runner runnerTyp, sync bool) (err err
 			}
 		}
 
+		if err == nil {
+			err = sp.Flush()
+		}
+
+		// check err again
 		if err != nil {
-			err = pw.EmitLog(err)
+			err = sp.EmitLog(err)
 		}
 	}()
 
 	if sync {
 		if runner.httpRunner != nil {
-			return runner.httpRunner.Run(pw)
+			runCtx := newHTTPRunCtx(ctx, runner.schema, sp)
+			return runner.httpRunner.Run(runCtx)
 		} else if runner.fsRunner != nil {
-			return runner.fsRunner.Run(pw)
+			return fmt.Errorf("fs runner not implemented")
 		} else {
 			return fmt.Errorf("runner not implemented")
 		}
 	}
 	return nil
+}
+
+type BaseProtocol struct {
+	recBuf []byte
+	wr     io.Writer
+}
+
+func (m *BaseProtocol) flush(last bool) error {
+	if last || len(m.recBuf) > 4096 {
+		_, err := m.wr.Write(m.recBuf)
+		m.recBuf = m.recBuf[:0]
+		return err
+	}
+	return nil
+}
+
+func (m *BaseProtocol) Flush() error {
+	return m.flush(true)
 }

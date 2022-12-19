@@ -134,8 +134,12 @@ func (r *sourceDef) Run(ctx context.Context, proto Proto, sync bool) error {
 
 func (r *sourceDef) Check(ctx context.Context, proto Proto) error {
 	for _, runner := range r.runners {
-		runCtx := newRunCtx(ctx, runner.schema, proto)
-		if err := runner.httpRunner.Run(&validatorLoader{runContext: *runCtx}); err == validatorOK {
+		stPr, err := proto.Open(runner.schema)
+		if err != nil {
+			return err
+		}
+		runCtx := newHTTPRunCtx(ctx, runner.schema, stPr)
+		if err := runner.httpRunner.Run(&validatorLoader{httpRunContext: *runCtx}); err == validatorOK {
 			return proto.EmitStatus(nil)
 		} else if err != nil {
 			return proto.EmitStatus(fmt.Errorf("validation failed: %s", err.Error()))

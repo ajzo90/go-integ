@@ -3,17 +3,17 @@ package integ
 import "github.com/ajzo90/go-jsonschema-generator"
 
 type Schema struct {
-	Incremental       bool
-	PrimaryKey        []FieldDef
-	OrderByKey        []FieldDef
-	IterateByKey      []FieldDef
-	CustomPrimaryKey  bool
-	CustomOrderByKey  bool
-	CustomerIterateBy bool
-	Name              string
-	GoType            interface{}
-	JsonSchema        *jsonschema.Document
-	Namespace         string
+	Incremental        bool
+	PrimaryKey         []FieldDef
+	OrderByKey         []FieldDef
+	IterateByKey       []FieldDef
+	CustomPrimaryKey   bool
+	CustomOrderByKey   bool
+	CustomIterateByKey bool
+	Name               string
+	GoType             interface{}
+	JsonSchema         *jsonschema.Document
+	Namespace          string
 }
 
 func (s Schema) Validate() error {
@@ -65,7 +65,7 @@ func (s SchemaBuilder) CustomOrderBy() SchemaBuilder {
 }
 
 func (s SchemaBuilder) CustomIterateBy() SchemaBuilder {
-	s.CustomerIterateBy = true
+	s.CustomIterateByKey = true
 	return s
 }
 

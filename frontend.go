@@ -1,6 +1,9 @@
 package integ
 
-import "github.com/ajzo90/go-requests"
+import (
+	"github.com/ajzo90/go-requests"
+	"github.com/valyala/fastjson"
+)
 
 type HttpRunner interface {
 	// Run runs the sync job.
@@ -27,6 +30,12 @@ type GeneralContext interface {
 
 	// EmitState emit the state
 	EmitState(v interface{}) error
+
+	EmitLog(v any) error
+
+	EmitValues(v []*fastjson.Value) error
+
+	EmitValue(v any) error
 }
 
 type HttpContext interface {
@@ -36,7 +45,7 @@ type HttpContext interface {
 	// (likely) called multiple times in the same run
 	// resp: (pre-allocated and reusable)
 	// path: (path to the data array)
-	EmitBatch(req *requests.Request, resp *requests.JSONResponse, path ...string) error
+	EmitBatch(req *requests.Request, resp *requests.JSONResponse, keys ...string) error
 }
 
 type DbContext interface {
