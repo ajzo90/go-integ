@@ -26,7 +26,7 @@ var loaders = integ.Loaders{
 }
 
 var protos = integ.Protos{
-	"":       airbyte.Proto,
+	"":       airbyte.Airbyte,
 	"singer": singer.Proto,
 }
 

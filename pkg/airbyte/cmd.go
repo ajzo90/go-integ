@@ -69,8 +69,8 @@ func cmd(args []string, loader integ.Loader, w io.Writer) error {
 			return err
 		}
 	}
-	
+
 	return loader.Handle(context.Background(), cmd, w, bytes.NewReader(b.Bytes()), integ.Protos{
-		"airbyte": Proto,
+		"airbyte": Airbyte,
 	})
 }

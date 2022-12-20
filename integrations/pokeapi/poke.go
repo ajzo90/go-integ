@@ -17,7 +17,7 @@ type pokemon struct {
 	Url  string `json:"url"`
 }
 
-var runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
+var runner = integ.HttpRunnerFunc(func(ctx integ.HttpContext) error {
 	var cnf config
 	var dummyState struct{}
 	if err := ctx.Load(&cnf, &dummyState); err != nil {

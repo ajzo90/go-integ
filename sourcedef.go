@@ -11,14 +11,16 @@ import (
 )
 
 type sourceDef struct {
-	incremental bool
-	config      interface{}
-	runners     runners
-	protos      Protos
-	httpRunner  HttpRunner
-	notes       []string
-	docs        []string
-	version     string
+	incremental      bool
+	config           interface{}
+	runners          runners
+	protos           Protos
+	sharedHttpRunner HttpRunner
+	manualRunner     ManualRunner
+	notes            []string
+	docs             []string
+	version          string
+	concurrency      int
 }
 
 func (r *sourceDef) Handle(ctx context.Context, cmd Command, writer io.Writer, rd io.Reader, protos Protos) error {
@@ -27,9 +29,10 @@ func (r *sourceDef) Handle(ctx context.Context, cmd Command, writer io.Writer, r
 		return err
 	}
 
-	err = r.handle(ctx, proto, cmd)
+	err = r.handleCmd(ctx, proto, cmd)
 	closeErr := proto.Close()
 
+	proto.Close()
 	if err != nil {
 		return err
 	} else {
@@ -41,14 +44,14 @@ func (r *sourceDef) Protos(protos Protos) {
 	r.protos = protos
 }
 
-func (r *sourceDef) handle(ctx context.Context, proto Proto, cmd Command) error {
+func (r *sourceDef) handleCmd(ctx context.Context, proto Proto, cmd Command) error {
 	switch cmd {
 	case CmdSpec:
 		return r.Spec(ctx, proto)
 	case CmdCheck:
 		return r.Check(ctx, proto)
 	case CmdDiscover:
-		return r.Run(ctx, proto, false)
+		return r.Discover(ctx, proto)
 	case CmdRead:
 		return r.Run(ctx, proto, true)
 	default:
@@ -57,7 +60,7 @@ func (r *sourceDef) handle(ctx context.Context, proto Proto, cmd Command) error 
 }
 
 func NewSource(config interface{}) *sourceDef {
-	return &sourceDef{config: config}
+	return &sourceDef{config: config, concurrency: 1}
 }
 
 func (r *sourceDef) Documentation(links ...string) *sourceDef {
@@ -81,7 +84,7 @@ func (r *sourceDef) Interleaved() *sourceDef {
 }
 
 func (r *sourceDef) HttpRunner(runner HttpRunner) *sourceDef {
-	r.httpRunner = runner
+	r.sharedHttpRunner = runner
 	return r
 }
 
@@ -97,13 +100,18 @@ func (r *sourceDef) DbStream(schema SchemaBuilder, runner ...DbRunner) *sourceDe
 	return r
 }
 
+func (r *sourceDef) ManualRunner(runner ManualRunner) *sourceDef {
+	r.manualRunner = runner
+	return r
+}
+
 func (r *sourceDef) HttpStream(schema SchemaBuilder, runner ...HttpRunner) *sourceDef {
 	r.incremental = r.incremental || schema.Incremental
 	var fn HttpRunner
 	if len(runner) == 1 {
 		fn = runner[0]
 	} else {
-		fn = r.httpRunner
+		fn = r.sharedHttpRunner
 	}
 	r.runners = append(r.runners, runnerTyp{schema: schema.Schema, httpRunner: fn})
 	return r
@@ -115,21 +123,6 @@ func (r *sourceDef) Spec(ctx context.Context, proto Proto) error {
 		SupportsIncremental:     r.incremental, // why is this important to share?
 		ConnectionSpecification: jsonschema.New(r.config),
 	})
-}
-
-func (r *sourceDef) Read(ctx context.Context, proto Proto) error {
-	return r.Run(ctx, proto, true)
-}
-
-func (r *sourceDef) Run(ctx context.Context, proto Proto, sync bool) error {
-	wg, ctx := errgroup.WithContext(ctx)
-	for _, runner := range r.runners {
-		runner := runner // copy
-		wg.Go(func() (err error) {
-			return run(ctx, proto, runner, sync)
-		})
-	}
-	return wg.Wait()
 }
 
 func (r *sourceDef) Check(ctx context.Context, proto Proto) error {
@@ -148,8 +141,48 @@ func (r *sourceDef) Check(ctx context.Context, proto Proto) error {
 	return fmt.Errorf("validation failed: unexpected error")
 }
 
+// Emit scehmas by calling run without sync
 func (r *sourceDef) Discover(ctx context.Context, proto Proto) error {
 	return r.Run(ctx, proto, false)
+}
+
+func (r *sourceDef) Read(ctx context.Context, proto Proto) error {
+	return r.Run(ctx, proto, true)
+}
+
+type throttler chan struct{}
+
+func (t *throttler) Wrap(f func() error) func() error {
+	return func() error {
+		*t <- struct{}{}
+		err := f()
+		<-*t
+		return err
+	}
+}
+
+func (r *sourceDef) Run(ctx context.Context, proto Proto, sync bool) error {
+	wg, ctx := errgroup.WithContext(ctx)
+
+	var t = make(throttler, r.concurrency)
+
+	for _, runner := range r.runners {
+		runner := runner // copy
+		wg.Go(t.Wrap(func() error {
+			return run(ctx, proto, runner, sync)
+		}))
+	}
+
+	if r.manualRunner != nil {
+		c := &manualCtx{p: proto}
+		wg.Go(t.Wrap(func() error {
+			if err := r.manualRunner.Run(c); err != nil {
+				return err
+			}
+			return c.Close()
+		}))
+	}
+	return wg.Wait()
 }
 
 func (r *sourceDef) Validate() error {

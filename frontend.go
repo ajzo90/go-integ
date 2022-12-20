@@ -10,6 +10,10 @@ type HttpRunner interface {
 	Run(ctx HttpContext) error
 }
 
+type ManualRunner interface {
+	Run(ctx ManualContext) error
+}
+
 type DbRunner interface {
 	Run(ctx DbContext) error
 }
@@ -36,6 +40,8 @@ type GeneralContext interface {
 	EmitValues(v []*fastjson.Value) error
 
 	EmitValue(v any) error
+
+	//EmitRelated(typ Schema, v any) error
 }
 
 type HttpContext interface {

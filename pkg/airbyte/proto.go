@@ -8,7 +8,7 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-var Proto integ.ProtoFn = func(p *integ.Protocol) integ.Proto {
+var Airbyte integ.ProtoFn = func(p *integ.Protocol) integ.Proto {
 	return &proto{Protocol: p, regState: map[string]interface{}{}}
 }
 

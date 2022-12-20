@@ -37,7 +37,7 @@ type config struct {
 
 // todo: implement incremental sync
 
-var Runner = integ.RunnerFunc(func(ctx integ.HttpContext) error {
+var Runner = integ.HttpRunnerFunc(func(ctx integ.HttpContext) error {
 	cnf := config{Num: 10}
 	if err := ctx.Load(&cnf, nil); err != nil {
 		return err

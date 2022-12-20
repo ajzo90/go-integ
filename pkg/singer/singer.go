@@ -47,10 +47,11 @@ func (m *singer) Open(schema integ.Schema) (integ.StreamProto, error) {
 	}
 
 	var extractKey = func(fields []integ.FieldDef) []string {
-		if len(fields) == 0 {
-			return nil
+		var out = make([]string, len(fields))
+		for i, f := range fields {
+			out[i] = f.Path[0]
 		}
-		return fields[0].Path[:1]
+		return out
 	}
 
 	err := m.Encode(schemaMsg{
