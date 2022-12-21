@@ -1,9 +1,10 @@
 package singer
 
 import (
+	"time"
+
 	"github.com/ajzo90/go-integ"
 	"github.com/valyala/fastjson"
-	"time"
 )
 
 func (m *singerStream) Load(config, state interface{}) error {

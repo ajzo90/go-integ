@@ -1,11 +1,12 @@
 package singer
 
 import (
+	"strings"
+	"time"
+
 	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-jsonschema-generator"
 	"github.com/valyala/fastjson"
-	"strings"
-	"time"
 )
 
 var Proto integ.ProtoFn = func(p *integ.Protocol) integ.Proto {
@@ -41,10 +42,6 @@ type schemaMsg struct {
 
 func (m *singer) Open(schema integ.Schema) (integ.StreamProto, error) {
 	// emit stream info. number of records?
-	var pks []string
-	for _, v := range schema.PrimaryKey {
-		pks = append(pks, v.Path[0])
-	}
 
 	var extractKey = func(fields []integ.FieldDef) []string {
 		var out = make([]string, len(fields))

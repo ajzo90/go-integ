@@ -6,6 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/ajzo90/go-integ"
 	"github.com/ajzo90/go-integ/integrations/pokeapi"
 	"github.com/ajzo90/go-integ/integrations/shopify"
@@ -13,10 +18,6 @@ import (
 	"github.com/ajzo90/go-integ/pkg/airbyte"
 	"github.com/ajzo90/go-integ/pkg/singer"
 	"golang.org/x/crypto/nacl/sign"
-	"log"
-	"net/http"
-	"strings"
-	"time"
 )
 
 var loaders = integ.Loaders{
@@ -101,8 +102,8 @@ func main() {
 	pub, priv, _ := sign.GenerateKey(rand.Reader)
 	var tok = Token{ExpiresAt: time.Now().Add(time.Hour).Unix(), UrlPrefixes: "/poke/spec", Public: pub[:]}
 
-	fmt.Println("Tok", tok)
-	fmt.Println("Authorization:", signToken(tok, priv))
+	log.Println("Tok", tok)
+	log.Println("Authorization:", signToken(tok, priv))
 
 	h := integ.Handler(loaders, protos)
 	authH := func(writer http.ResponseWriter, request *http.Request) {

@@ -6,15 +6,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ajzo90/go-jsonschema-generator"
-	"github.com/ajzo90/go-requests"
-	"github.com/klauspost/compress/zstd"
-	"github.com/valyala/fastjson"
 	"io"
 	"log"
 	"net/http"
 	"runtime/debug"
 	"strings"
+
+	"github.com/ajzo90/go-jsonschema-generator"
+	"github.com/ajzo90/go-requests"
+	"github.com/klauspost/compress/zstd"
+	"github.com/valyala/fastjson"
 )
 
 type Loader interface {
